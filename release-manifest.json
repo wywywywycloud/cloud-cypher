@@ -21,14 +21,14 @@
       "sha256": "409f8d923a38b8446dd079a53bb0d9cbcffaa51e0c7da4e0b530203b9ad17b2f"
     },
     {
-      "bytes": 25130,
+      "bytes": 25349,
       "path": "index.html",
-      "sha256": "1d277dfe170e3904c922c3a6f0f0907414568056893abf87a1d27c59bf6c3b02"
+      "sha256": "707bbb763b9820feba02bd02cde0b36939d7f09c6ea4eb11070fe34f4835714b"
     },
     {
-      "bytes": 6536,
+      "bytes": 7874,
       "path": "passkeys.js",
-      "sha256": "43d8642429645b2723b7b0f01dd05c83fb732e4bff01dc274cc8e879458aa3c6"
+      "sha256": "f33872b77a2c1f7106a6a9c5b89872876eb04c5d7951f880bef9a74b6e849e51"
     },
     {
       "bytes": 26964,

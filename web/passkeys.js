@@ -17,7 +17,8 @@ async function post(path, payload) {
   if (!response.ok) {
     const messages = {
       credential_already_exists: 'Passkey уже подключён. Его замена возможна только со сбросом хранилища.',
-      backup_required: 'Выберите синхронизируемый passkey в менеджере паролей.',
+      synced_passkey_required: 'Выбран ключ только для этого устройства. Выберите passkey на другом устройстве с поддержкой PRF и резервирования. Обычный несинхронизируемый USB-ключ не подойдёт.',
+      passkey_backup_required: 'Менеджер ключей пока не подтвердил резервирование passkey. Проверьте его синхронизацию и повторите настройку.',
       recent_authentication_required: 'Подтвердите действие повторным входом.',
       rate_limited: 'Слишком много попыток. Повторите позднее.',
     };
@@ -28,15 +29,19 @@ async function post(path, payload) {
 
 async function options(value) {
   const result = {...value, challenge: decodeBase64Url(value.challenge)};
+  // Prefer a phone over hybrid/QR, including for discoverable login. Hints
+  // guide browser UI; they are not cryptographic proof of the transport.
+  result.hints = ['hybrid'];
   if ((value.rp?.id || value.rpId) !== location.hostname) throw new CypherError('Домен passkey не совпадает с текущим сайтом.');
   if (value.user) {
-    result.authenticatorSelection = {...value.authenticatorSelection, userVerification: 'required', residentKey: 'required'};
+    result.authenticatorSelection = {...value.authenticatorSelection, authenticatorAttachment: 'cross-platform', userVerification: 'required', residentKey: 'required'};
   } else {
     result.userVerification = 'required';
   }
   if (value.user) result.user = {...value.user, id: decodeBase64Url(value.user.id)};
   for (const list of ['allowCredentials', 'excludeCredentials']) {
-    if (value[list]) result[list] = value[list].map(item => ({...item, id: decodeBase64Url(item.id)}));
+    if (value[list]) result[list] = value[list].map(item => ({...item, id: decodeBase64Url(item.id),
+      ...(list === 'allowCredentials' ? {transports: ['hybrid', 'usb', 'nfc', 'ble']} : {})}));
   }
   // The browser uses a constant, published PRF input. It never accepts an
   // arbitrary server-provided input to the authenticator's PRF.
@@ -81,9 +86,13 @@ async function getCredential(kind, publicKey) {
   try {
     const credential = await navigator.credentials[kind]({publicKey: await options(publicKey)});
     if (!credential) throw new Error('cancelled');
+    if (credential.authenticatorAttachment === 'platform') {
+      throw new CypherError('Выбран локальный passkey. Выберите «Другое устройство» и подтвердите действие на телефоне, например через QR-код.');
+    }
     return credential;
-  } catch {
-    throw new CypherError('Passkey не выбран или недоступен. Повторите действие и выберите свой менеджер паролей.');
+  } catch (error) {
+    if (error instanceof CypherError) throw error;
+    throw new CypherError('Passkey на внешнем устройстве не выбран или недоступен. Выберите «Другое устройство», отсканируйте QR-код телефоном и включите Bluetooth на обоих устройствах, если браузер попросит. Нужна поддержка PRF и резервирования.');
   }
 }
 
