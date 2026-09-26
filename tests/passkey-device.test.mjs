@@ -11,13 +11,13 @@ const credential = attachment => ({
   id: 'AQID', rawId: Uint8Array.of(1, 2, 3).buffer, authenticatorAttachment: attachment,
   response: {clientDataJSON: Uint8Array.of(4).buffer, attestationObject: Uint8Array.of(5).buffer},
 });
-function setup(t, publicKey) {
+function setup(t, publicKey, hostname = 'localhost') {
   t.mock.method(globalThis, 'fetch', async url => {
     const result = url.endsWith('/session/') ? {csrf_token: 'test'} :
       url.endsWith('/register/finish/') ? {id: 'AQID'} : {challenge: 'test', publicKey};
     return new Response(JSON.stringify(result), {headers: {'Content-Type': 'application/json'}});
   });
-  for (const [name, value] of Object.entries({location: {hostname: 'localhost'}, PublicKeyCredential: function () {}})) {
+  for (const [name, value] of Object.entries({location: {hostname}, PublicKeyCredential: function () {}})) {
     const before = Object.getOwnPropertyDescriptor(globalThis, name);
     Object.defineProperty(globalThis, name, {value, configurable: true});
     t.after(() => before ? Object.defineProperty(globalThis, name, before) : delete globalThis[name]);
@@ -77,4 +77,39 @@ test('cancelling external device selection does not retry using a local device',
   api.create = async () => { calls++; throw new DOMException('cancelled', 'NotAllowedError'); };
   await assert.rejects(enrollPasskey({}, 'unused'), /внешнем устройстве/);
   assert.equal(calls, 1);
+});
+
+test('parent RP credentials remain usable from the new cloud subdomain', async t => {
+  const api = setup(t, {challenge: 'AQID', rpId: 'nimbus.by'}, 'cloud.nimbus.by');
+  let calls = 0;
+  api.get = async ({publicKey}) => {
+    calls++;
+    assert.equal(publicKey.rpId, 'nimbus.by');
+    assert.equal(publicKey.extensions.prf.eval.first.byteLength, 32);
+    return credential('platform');
+  };
+  await assert.rejects(loginPasskey(), /локальный passkey/);
+  assert.equal(calls, 1);
+});
+test('parent RP registration reaches the authenticator without changing the RP', async t => {
+  const api = setup(t, {...options, rp: {id:'nimbus.by'}}, 'cloud.nimbus.by');
+  let calls = 0;
+  api.create = async ({publicKey}) => {
+    calls++;
+    assert.equal(publicKey.rp.id, 'nimbus.by');
+    return credential('platform');
+  };
+  await assert.rejects(enrollPasskey({}, 'unused'), /локальный passkey/);
+  assert.equal(calls, 1);
+});
+test('unrelated, sibling and suffix-confusion RP IDs never reach the authenticator', async t => {
+  for (const rpId of ['other.nimbus.by', 'imbus.by', 'example.org', '', undefined]) {
+    await t.test(String(rpId), async t => {
+      const api = setup(t, {challenge:'AQID', rpId}, 'cloud.nimbus.by');
+      let calls = 0;
+      api.get = async () => { calls++; return credential('platform'); };
+      await assert.rejects(loginPasskey(), /Домен passkey/);
+      assert.equal(calls, 0);
+    });
+  }
 });

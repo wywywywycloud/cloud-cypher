@@ -7,9 +7,9 @@
 
 В этой версии `web/` содержит готовые исходные HTML, JavaScript и CSS. Наш клиент
 не требует минификации или транспиляции: публикуемые байты должны совпадать с
-файлами `web/`. Единственная поставляемая сторонняя исполняемая зависимость —
-`vendor/opaque.js`: зафиксированный npm-артефакт OPAQUE со встроенным скомпилированным
-WebAssembly. Его происхождение и сверка описаны в [SECURITY.md](SECURITY.md).
+файлами `web/`. Поставляемые сторонние исполняемые зависимости — `vendor/opaque.js`
+(зафиксированный npm-артефакт OPAQUE со встроенным WebAssembly) и
+`vendor/qrcode.js` (локальное создание QR для TOTP без внешнего сервиса). Их происхождение и сверка описаны в [SECURITY.md](SECURITY.md).
 Сравнение поставленных байтов не доказывает безопасность исходников, библиотеки
 или соответствие встроенного WASM исходному Rust-коду.
 
@@ -85,7 +85,8 @@ python3 tools/verify.py verify-har --manifest release-manifest.json --har captur
 посторонние адреса обозначаются общим кодом без их содержимого.
 
 Для обычного экрана по умолчанию нужны `index.html`, `app.js`, `crypto.js`,
-`http.js`, `account.js`, `passkeys.js`, `vendor/opaque.js` и `style.css` — если они
+`http.js`, `account.js`, `passkeys.js`, `totp-qr.js`, `vendor/opaque.js`,
+`vendor/qrcode.js` и `style.css` — если они
 присутствовали при создании манифеста. `index.html` обязателен
 всегда. `verify.html` присутствует в манифесте, но не обязан загружаться в каждой
 сессии. Каждый наблюдавшийся файл всё равно проверяется. Непросмотренные файлы
@@ -96,7 +97,7 @@ python3 tools/verify.py verify-har --manifest release-manifest.json --har captur
 обычный набор, поэтому перечислите все необходимые файлы, включая `index.html`:
 
 ```sh
-python3 tools/verify.py verify-har --manifest release-manifest.json --har capture.har --base-url http://127.0.0.1:8017/vault/ --require-path index.html --require-path app.js --require-path crypto.js --require-path http.js --require-path account.js --require-path passkeys.js --require-path vendor/opaque.js --require-path style.css --require-path verify.html --report full-har-report.json
+python3 tools/verify.py verify-har --manifest release-manifest.json --har capture.har --base-url http://127.0.0.1:8017/vault/ --require-path index.html --require-path app.js --require-path crypto.js --require-path http.js --require-path account.js --require-path passkeys.js --require-path vendor/opaque.js --require-path totp-qr.js --require-path vendor/qrcode.js --require-path style.css --require-path verify.html --report full-har-report.json
 ```
 
 Правила обработки HAR:
@@ -158,3 +159,18 @@ python3 -m unittest discover -s tests -p test_verify.py -v
 синтетические HAR: проверяются подменённые файлы, редиректы, пропущенные и
 кэшированные ответы, конфликтующие дубликаты, посторонние скрипты, подмена
 source maps, неправильные заголовки, Base64, пути и JSON-структура.
+
+
+## Проверка публичного Nimbus
+
+Из независимо полученного checkout выбранного коммита cloud-cypher:
+
+```sh
+python3 tools/verify.py verify-url --manifest release-manifest.json --base-url https://cloud.nimbus.by:9443/vault/ --report /tmp/nimbus-verification.json
+```
+
+Используйте точный адрес с :9443: verifier намеренно отклоняет редиректы.
+Манифест покрывает все 11 файлов web/, включая QR-модуль и его зависимость.
+Отчёт mismatch означает, что сайт не соответствует выбранной версии Git.
+Не пересоздавайте эталон из скачанных с сайта файлов ради успешного результата.
+Публикация новой версии в Git сама по себе не обновляет сервер.
