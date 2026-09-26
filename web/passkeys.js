@@ -32,7 +32,13 @@ async function options(value) {
   // Prefer a phone over hybrid/QR, including for discoverable login. Hints
   // guide browser UI; they are not cryptographic proof of the transport.
   result.hints = ['hybrid'];
-  if ((value.rp?.id || value.rpId) !== location.hostname) throw new CypherError('Домен passkey не совпадает с текущим сайтом.');
+  const rpId = value.rp?.id || value.rpId;
+  // Preserve existing credentials when the app moves to a subdomain of its RP.
+  // WebAuthn additionally enforces registrable-domain/public-suffix constraints.
+  if (typeof rpId !== 'string' || !rpId ||
+      !(location.hostname === rpId || location.hostname.endsWith(`.${rpId}`))) {
+    throw new CypherError('Домен passkey не совпадает с текущим сайтом.');
+  }
   if (value.user) {
     result.authenticatorSelection = {...value.authenticatorSelection, authenticatorAttachment: 'cross-platform', userVerification: 'required', residentKey: 'required'};
   } else {
