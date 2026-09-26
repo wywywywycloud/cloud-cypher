@@ -1,0 +1,20 @@
+{
+  "name": "cloud-cypher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Auditable browser encryption client and independent delivery verifier",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:verify": "python3 -m unittest discover -s tests -p 'test_*.py'",
+    "manifest": "python3 tools/verify.py manifest --root web --output release-manifest.json --headers-policy headers-policy.json"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  },
+  "packageManager": "pnpm@11.19.0"
+}

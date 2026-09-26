@@ -1,0 +1,89 @@
+{
+  "status": "passed",
+  "browser": "153.0.8010.53",
+  "checks": [
+    {
+      "name": "email registration, OPAQUE password login and email confirmation",
+      "status": "passed"
+    },
+    {
+      "name": "upload blocked until passkey recovery is enrolled",
+      "status": "passed"
+    },
+    {
+      "name": "real browser WebAuthn registration, PRF and verified activation",
+      "status": "passed"
+    },
+    {
+      "name": "upload encrypts and download decrypts exact original bytes",
+      "status": "passed",
+      "plaintext_sha256": "f9907ad912c812fc9948470115356aca4a3ee59f5376efd1525bfb744716dbf1",
+      "bytes": 36000
+    },
+    {
+      "name": "image preview uses browser-decrypted blob URL",
+      "status": "passed"
+    },
+    {
+      "name": "HTTP API exposes encrypted bytes and encrypted filename metadata",
+      "status": "passed"
+    },
+    {
+      "name": "list/grid, light/dark and widths 1280/390/320 have no horizontal overflow",
+      "status": "passed"
+    },
+    {
+      "name": "password change rewraps same vault and preserves file bytes",
+      "status": "passed"
+    },
+    {
+      "name": "new isolated browser context opens same files using password, without prior device state",
+      "status": "passed"
+    },
+    {
+      "name": "old password rejected after change",
+      "status": "passed"
+    },
+    {
+      "name": "passkey + PRF opens files after browser session cookies are removed",
+      "status": "passed"
+    },
+    {
+      "name": "forgotten password recovered through passkey without changing files",
+      "status": "passed"
+    },
+    {
+      "name": "tampered encrypted download fails authentication and never produces a plaintext download",
+      "status": "passed"
+    },
+    {
+      "name": "TOTP enrollment requires password proof and a valid generator code",
+      "status": "passed"
+    },
+    {
+      "name": "password plus TOTP replaces email code and opens same files; no session before code verification",
+      "status": "passed"
+    },
+    {
+      "name": "explicit email reset destroys vault and passkey/TOTP bindings, invalidates other sessions and removes old file access",
+      "status": "passed"
+    },
+    {
+      "name": "after destructive reset, new password/passkey protects a new empty vault and accepts new encrypted uploads",
+      "status": "passed"
+    },
+    {
+      "name": "captured browser requests never contain plaintext passwords, file content or filename",
+      "status": "passed"
+    },
+    {
+      "name": "no unhandled browser JavaScript errors",
+      "status": "passed"
+    }
+  ],
+  "limits": [
+    "Synthetic Chrome virtual authenticator, not actual Apple/Google cloud synchronization.",
+    "No independent security audit or production load test.",
+    "Screenshots and input files contain synthetic data only."
+  ]
+}

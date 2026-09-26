@@ -1,0 +1,9 @@
+{
+  "package": "@serenity-kit/opaque",
+  "version": "1.1.0",
+  "tarball": "https://registry.npmjs.org/@serenity-kit/opaque/-/opaque-1.1.0.tgz",
+  "integrity": "sha512-Y6v/+hRMn0MdMEk5+/ArM0vPIiFfFEbdTZc7oAx+cWyvGODGezAQ/sMjXBVogf7NsS9z9EV0Ve5paZCVULuedw==",
+  "browser_source": "package/esm/index.js",
+  "browser_sha256": "1e8d56383a77948e453085b6d4f52dcb9645f8bfff32395738b63d3a2e2fcb52",
+  "license": "MIT"
+}

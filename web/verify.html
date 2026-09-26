@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Как устроено шифрование cloud.nimbus и как независимо проверить код сайта до входа.">
+  <title>Как проверить защиту · cloud.nimbus</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="./"><span>cloud<span class="brand-dot">.</span>nimbus</span></a><nav class="header-links" aria-label="Информация"><a href="https://github.com/wywywywycloud/cloud-cypher" target="_blank" rel="noopener noreferrer">Исходный код ↗</a></nav></header>
+  <main class="main-shell document-shell">
+    <a class="back-link" href="./">← К хранилищу</a>
+    <span class="eyebrow">Открыто до входа</span>
+    <h1>Как работает защита</h1>
+    <p class="document-lead">Файлы шифруются на вашем устройстве. Здесь можно прочитать, что это защищает, какие ограничения остаются и как сравнить код сайта с опубликованной версией.</p>
+
+    <section id="encryption"><h2>Что получает сервер</h2><p>Штатный клиент отправляет зашифрованное содержимое, зашифрованные имена и защищённые ключи файлов. Парольный вход использует OPAQUE: браузер получает секрет для открытия ключей, не отправляя сам пароль серверу в открытом виде.</p><p>Сервер всё равно видит аккаунт, размеры зашифрованных файлов, их количество и время операций. Он может удалить данные или вернуть старую копию. Шифрование не заменяет резервное копирование.</p></section>
+
+    <section id="browser"><h2>Граница браузерной защиты</h2><p><strong>Эта страница загружается с сервера.</strong> Если его владелец заменит JavaScript, он может перехватить пароль, ключи или выбранный файл. Открытые исходники, HTTPS и браузерная криптография сами по себе не предотвращают такую подмену.</p><p>Независимая проверка сравнивает полученные байты с выбранным эталоном. Она не останавливает программу до запуска и не возвращает уже раскрытые секреты. Поэтому успешная проверка означает совпадение в указанном охвате, а не заключение «сайт безопасен».</p></section>
+
+    <section id="recovery"><h2>Если потеряно устройство</h2><p>Вход с тем же паролем на новом устройстве позволяет снова открыть ключи и файлы, сохранённые в облаке. Парольный вход дополнительно подтверждается кодом из письма или подключённого TOTP-приложения. Потеря устройства и забытый пароль — разные ситуации.</p><p>Второй путь реализован через passkey с функцией PRF и резервированием у его провайдера. Через такой passkey можно войти и восстановить забытый пароль с сохранением файлов. Обычного подтверждения passkey недостаточно для расшифрования. Браузерные тесты с виртуальным аутентификатором прошли; совместимость реального браузера и провайдера, а также фактическое восстановление на другом устройстве требуют отдельной проверки.</p><p>Коды из TOTP-приложения подтверждают вход вместо email-кода, но не заменяют секрет шифрования. Если не осталось ни пароля, ни подходящего восстанавливаемого passkey, сервер не сможет открыть прежние файлы. Сброс потерянного passkey через email требует явного подтверждения удаления всех файлов.</p></section>
+
+    <section id="checks"><h2>Проверка до входа</h2><ol><li>Получите исходники выбранного релиза из независимо проверенного источника. <a href="https://github.com/wywywywycloud/cloud-cypher" target="_blank" rel="noopener noreferrer">Репозиторий cloud-cypher</a> содержит клиент, формат и инструмент проверки. Эталон, скачанный одновременно с проверяемого сайта, не является независимым.</li><li>В проверенной локальной копии создайте манифест — список файлов с ожидаемыми хешами и заголовками.</li><li>Запустите сравнение новых HTTP-ответов сервера. Вход для этого не требуется.</li></ol><pre><code>python3 tools/verify.py manifest --root web --output release-manifest.json --headers-policy headers-policy.json
+python3 tools/verify.py verify-url --manifest release-manifest.json --base-url https://ВАШ-ДОМЕН/vault/ --report url-report.json</code></pre><p>Замените адрес на проверяемый сайт. Инструмент работает отдельно от страницы и не запрашивает пароль. Новые запросы показывают, что сервер вернул проверяющему сейчас; конкретному пользователю он может выдать другой ответ.</p><p>Чтобы сравнить ответы из определённой браузерной сессии, можно экспортировать HAR с телами ответов и проверить его локально. Сырой HAR может содержать секреты: не публикуйте его. <a href="https://github.com/wywywywycloud/cloud-cypher/blob/main/docs/VERIFICATION.md" target="_blank" rel="noopener noreferrer">Полная инструкция, охват и ограничения →</a></p></section>
+
+    <section id="source"><h2>Что опубликовано</h2><p>HTML, CSS и собственный JavaScript поставляются без отдельного шага сборки. Вместе с ними включён зафиксированный пакет OPAQUE со скомпилированным WebAssembly. Его архив и браузерный файл можно сверить по опубликованным хешам; сборка WASM из исходников этим не подтверждается.</p><p><a href="https://github.com/wywywywycloud/cloud-cypher/blob/main/docs/FORMAT.md" target="_blank" rel="noopener noreferrer">Формат файлов</a> · <a href="https://github.com/wywywywycloud/cloud-cypher/blob/main/docs/SECURITY.md" target="_blank" rel="noopener noreferrer">Модель безопасности и зависимости</a> · <a href="https://github.com/wywywywycloud/cloud-nimbus-e2ee" target="_blank" rel="noopener noreferrer">Сервер Nimbus</a></p></section>
+
+    <section id="limits"><h2>Текущий статус</h2><p>Это прототип для проверки архитектуры. Независимый аудит не проведён. Автоматические тесты проверяют конкретные сценарии порчи данных и подмены кода; они не доказывают отсутствие всех ошибок.</p><p>Файлы обрабатываются целиком, максимум 50 МиБ на файл с учётом доступного места в хранилище. Возобновления загрузки и общего доступа к зашифрованным файлам нет. Встроенный просмотр работает только для PNG, JPEG, GIF и WebP.</p></section>
+  </main>
+  <footer class="site-footer"><span>cloud.nimbus <span class="footer-divider">/</span> cloud-cypher</span><div><a href="./">К хранилищу</a><a href="https://github.com/wywywywycloud/cloud-cypher" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div></footer>
+</body>
+</html>

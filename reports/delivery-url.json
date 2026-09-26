@@ -1,0 +1,109 @@
+{
+  "checked": [
+    {
+      "expected_sha256": "0eaa5e9e4404fa1e2dec7df8df40014b3969b179af93db377c36f3122096c820",
+      "http_status": 200,
+      "path": "account.js",
+      "sha256": "0eaa5e9e4404fa1e2dec7df8df40014b3969b179af93db377c36f3122096c820",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "efaf4b7f99a0717fd9b1fa157994994be777c11cf30cb1131cf0792c8390c4ff",
+      "http_status": 200,
+      "path": "app.js",
+      "sha256": "efaf4b7f99a0717fd9b1fa157994994be777c11cf30cb1131cf0792c8390c4ff",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "f5613ee8ab62f69c9a3717aadf3479aaed4ce93c25e082202234760a1af6be16",
+      "http_status": 200,
+      "path": "crypto.js",
+      "sha256": "f5613ee8ab62f69c9a3717aadf3479aaed4ce93c25e082202234760a1af6be16",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "409f8d923a38b8446dd079a53bb0d9cbcffaa51e0c7da4e0b530203b9ad17b2f",
+      "http_status": 200,
+      "path": "http.js",
+      "sha256": "409f8d923a38b8446dd079a53bb0d9cbcffaa51e0c7da4e0b530203b9ad17b2f",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "996710b28c39f8cb7fa19dafa049eb2efcbb743d80c9e39e8e2154d98f84e8eb",
+      "http_status": 200,
+      "path": "index.html",
+      "sha256": "996710b28c39f8cb7fa19dafa049eb2efcbb743d80c9e39e8e2154d98f84e8eb",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "9f4a144dff51a1ba7ddef3c35529532a995df70b89990ce7ef4ac1a2fa4a0990",
+      "http_status": 200,
+      "path": "passkeys.js",
+      "sha256": "9f4a144dff51a1ba7ddef3c35529532a995df70b89990ce7ef4ac1a2fa4a0990",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "a59642998c2a391fa5d429b5b839b2644a6ac0399cb89fa1dafadc18dc1e6776",
+      "http_status": 200,
+      "path": "style.css",
+      "sha256": "a59642998c2a391fa5d429b5b839b2644a6ac0399cb89fa1dafadc18dc1e6776",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "1e8d56383a77948e453085b6d4f52dcb9645f8bfff32395738b63d3a2e2fcb52",
+      "http_status": 200,
+      "path": "vendor/opaque.js",
+      "sha256": "1e8d56383a77948e453085b6d4f52dcb9645f8bfff32395738b63d3a2e2fcb52",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "ffebf967077db30e9a36eec602ddc88cf06949886904eb875160a2c9aad2b926",
+      "http_status": 200,
+      "path": "verify.html",
+      "sha256": "ffebf967077db30e9a36eec602ddc88cf06949886904eb875160a2c9aad2b926",
+      "status": "match"
+    },
+    {
+      "expected_sha256": "996710b28c39f8cb7fa19dafa049eb2efcbb743d80c9e39e8e2154d98f84e8eb",
+      "http_status": 200,
+      "path": "index.html",
+      "sha256": "996710b28c39f8cb7fa19dafa049eb2efcbb743d80c9e39e8e2154d98f84e8eb",
+      "status": "match"
+    }
+  ],
+  "format": "cloud-cypher-verification-report",
+  "issues": [],
+  "limitations": [
+    "A match establishes byte equality only within the stated observation scope.",
+    "It does not establish source safety, server behavior, equal delivery to others, or future delivery.",
+    "It does not block code execution or undo disclosure before verification.",
+    "These are new unauthenticated observer requests, not a user's browser session."
+  ],
+  "observed_paths": [
+    "account.js",
+    "app.js",
+    "crypto.js",
+    "http.js",
+    "index.html",
+    "passkeys.js",
+    "style.css",
+    "vendor/opaque.js",
+    "verify.html"
+  ],
+  "required_paths": [
+    "account.js",
+    "app.js",
+    "crypto.js",
+    "http.js",
+    "index.html",
+    "passkeys.js",
+    "style.css",
+    "vendor/opaque.js",
+    "verify.html"
+  ],
+  "scope": "new_http_responses_for_all_manifest_paths_and_entry_document",
+  "security_header_policy_checked": true,
+  "status": "verified_scope",
+  "unobserved_paths": [],
+  "version": 1
+}

@@ -1,0 +1,13 @@
+{
+  "scope": "synthetic disposable database and stored blobs",
+  "checks": {
+    "ciphertext_blobs_present": true,
+    "plaintext_marker_absent_from_blobs": true,
+    "plaintext_marker_absent_from_database": true,
+    "filename_absent_from_database": true,
+    "django_password_unusable": true
+  },
+  "ciphertext_sha256": [
+    "c6e438acae4a270b6827169600afbb1d3a483c2465eaa06cbca8f6865bcabda7"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "cache-control": "no-store",
+  "content-security-policy": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; worker-src 'none'",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff"
+}

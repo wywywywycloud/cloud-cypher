@@ -1,0 +1,34 @@
+{
+  "package": "@serenity-kit/opaque",
+  "version": "1.1.0",
+  "archive_integrity": "verified",
+  "status": "verified",
+  "files": [
+    {
+      "path": "web/vendor/opaque.js",
+      "status": "match",
+      "sha256": "1e8d56383a77948e453085b6d4f52dcb9645f8bfff32395738b63d3a2e2fcb52"
+    },
+    {
+      "path": "vendor/opaque/package.json",
+      "status": "match",
+      "sha256": "adfecbb5a253b50421472be32d563ac3e3c9ccf6831800d155d5699b81d8eb88"
+    },
+    {
+      "path": "vendor/opaque/LICENSE",
+      "status": "match",
+      "sha256": "f8d4901346dafc59a2778f1303d57d84cf0a5682c14625f9cc2af26245576555"
+    },
+    {
+      "path": "vendor/opaque/README.md",
+      "status": "match",
+      "sha256": "ca85b27183ff01d369ec87b0b929d9b638cb164e873340ecec94c2ec746fcf64"
+    },
+    {
+      "path": "vendor/opaque/index.d.ts",
+      "status": "match",
+      "sha256": "beda412319a379722e07eb30b2d4c4e84c82c92f8596aff327da3535204442f0"
+    }
+  ],
+  "source_rebuild": false
+}
