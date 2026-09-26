@@ -1,14 +1,14 @@
 {
   "files": [
     {
-      "bytes": 7329,
+      "bytes": 7382,
       "path": "account.js",
-      "sha256": "0eaa5e9e4404fa1e2dec7df8df40014b3969b179af93db377c36f3122096c820"
+      "sha256": "1b8389e4750e5cab4c9894c1fbdb24d811165ee58d9b6078c34d7b0e75f0f59d"
     },
     {
-      "bytes": 39459,
+      "bytes": 42274,
       "path": "app.js",
-      "sha256": "efaf4b7f99a0717fd9b1fa157994994be777c11cf30cb1131cf0792c8390c4ff"
+      "sha256": "eef4a7d6a0159d972a3ad48a07385538f46c00c0032e5d29c894533f5ccf5aa9"
     },
     {
       "bytes": 11886,
@@ -21,19 +21,19 @@
       "sha256": "409f8d923a38b8446dd079a53bb0d9cbcffaa51e0c7da4e0b530203b9ad17b2f"
     },
     {
-      "bytes": 23525,
+      "bytes": 25130,
       "path": "index.html",
-      "sha256": "996710b28c39f8cb7fa19dafa049eb2efcbb743d80c9e39e8e2154d98f84e8eb"
+      "sha256": "1d277dfe170e3904c922c3a6f0f0907414568056893abf87a1d27c59bf6c3b02"
     },
     {
-      "bytes": 6502,
+      "bytes": 6536,
       "path": "passkeys.js",
-      "sha256": "9f4a144dff51a1ba7ddef3c35529532a995df70b89990ce7ef4ac1a2fa4a0990"
+      "sha256": "43d8642429645b2723b7b0f01dd05c83fb732e4bff01dc274cc8e879458aa3c6"
     },
     {
-      "bytes": 24749,
+      "bytes": 26964,
       "path": "style.css",
-      "sha256": "a59642998c2a391fa5d429b5b839b2644a6ac0399cb89fa1dafadc18dc1e6776"
+      "sha256": "51521ed07f7d9a3e2824598060596279e0698d75e3cd8e765a5eb5a812e415d0"
     },
     {
       "bytes": 434604,
@@ -41,9 +41,9 @@
       "sha256": "1e8d56383a77948e453085b6d4f52dcb9645f8bfff32395738b63d3a2e2fcb52"
     },
     {
-      "bytes": 9457,
+      "bytes": 9729,
       "path": "verify.html",
-      "sha256": "ffebf967077db30e9a36eec602ddc88cf06949886904eb875160a2c9aad2b926"
+      "sha256": "b5a24b106e7fab7a5fcdccafdf65706bd2068f6ece72d427aeb5eb83f1b78312"
     }
   ],
   "format": "cloud-cypher-static-manifest",

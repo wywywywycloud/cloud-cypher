@@ -3,15 +3,27 @@
   "browser": "153.0.8010.53",
   "checks": [
     {
-      "name": "email registration, OPAQUE password login and email confirmation",
+      "name": "username-only OPAQUE registration yields restricted onboarding; files denied",
       "status": "passed"
     },
     {
-      "name": "upload blocked until passkey recovery is enrolled",
+      "name": "synthetic Telegram confirmation and return-to-tab advance to mandatory passkey",
       "status": "passed"
     },
     {
-      "name": "real browser WebAuthn registration, PRF and verified activation",
+      "name": "reload resumes incomplete onboarding after fresh OPAQUE proof",
+      "status": "passed"
+    },
+    {
+      "name": "real browser WebAuthn registration and PRF activation still require TOTP before file access",
+      "status": "passed"
+    },
+    {
+      "name": "mandatory TOTP enrollment completes onboarding and permits file access",
+      "status": "passed"
+    },
+    {
+      "name": "another password-only onboarding session gains no access when setup completes elsewhere",
       "status": "passed"
     },
     {
@@ -49,6 +61,14 @@
       "status": "passed"
     },
     {
+      "name": "signed BS=0 permits reading but blocks upload and explains how to confirm backup",
+      "status": "passed"
+    },
+    {
+      "name": "fresh signed BS=1 re-enables upload through passkey confirmation",
+      "status": "passed"
+    },
+    {
       "name": "forgotten password recovered through passkey without changing files",
       "status": "passed"
     },
@@ -57,23 +77,23 @@
       "status": "passed"
     },
     {
-      "name": "TOTP enrollment requires password proof and a valid generator code",
+      "name": "password plus mandatory TOTP opens same files; no session before code verification",
       "status": "passed"
     },
     {
-      "name": "password plus TOTP replaces email code and opens same files; no session before code verification",
+      "name": "explicit Telegram reset destroys vault and passkey/TOTP bindings, invalidates other sessions and removes old file access",
       "status": "passed"
     },
     {
-      "name": "explicit email reset destroys vault and passkey/TOTP bindings, invalidates other sessions and removes old file access",
-      "status": "passed"
-    },
-    {
-      "name": "after destructive reset, new password/passkey protects a new empty vault and accepts new encrypted uploads",
+      "name": "after destructive reset, new password/passkey/TOTP protects a new empty vault and accepts new encrypted uploads",
       "status": "passed"
     },
     {
       "name": "captured browser requests never contain plaintext passwords, file content or filename",
+      "status": "passed"
+    },
+    {
+      "name": "client has no email forms",
       "status": "passed"
     },
     {

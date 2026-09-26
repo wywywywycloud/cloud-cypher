@@ -11,7 +11,7 @@ export function setCodePrompt(callback) { codePrompt = callback; }
 function canonicalUsername(value) {
   const username = String(value).trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9_.-]{2,63}$/.test(username)) {
-    throw new CypherError('Не удалось проверить идентификатор аккаунта.');
+    throw new CypherError('Логин: 3–64 символа, латинские буквы, цифры, точка, дефис или подчёркивание.');
   }
   return username;
 }
@@ -38,7 +38,7 @@ async function post(path, data, namespace = 'opaque') {
   if (!response.ok) {
     const messages = {
       authentication_failed: 'Неверный логин или пароль. Либо попытка входа истекла.',
-      account_unavailable: 'Этот логин или адрес уже используется.',
+      account_unavailable: 'Этот логин уже используется.',
       rate_limited: 'Слишком много попыток. Повторите позднее.',
       opaque_unavailable: 'Вход временно недоступен: сервер OPAQUE не настроен.',
       recent_authentication_required: 'Подтвердите вход текущим паролем.',
@@ -75,7 +75,7 @@ export async function loginAccount(username, password) {
     identifiers: {client: username, server: serverIdentifier}, keyStretching: 'memory-constrained',
   });
   first = null;
-  if (!result) throw new CypherError('Неверный email или пароль.');
+  if (!result) throw new CypherError('Неверный логин или пароль.');
   const authenticated = await post('login/finish', {challenge: response.challenge, finishLoginRequest: result.finishLoginRequest});
   if (authenticated.second_factor_required) {
     if (!codePrompt) throw new CypherError('Введите одноразовый код для завершения входа.');
@@ -90,20 +90,21 @@ export async function loginAccount(username, password) {
 export const beginTotpSetup = () => post('setup/start', {}, 'otp');
 export const finishTotpSetup = (challenge, code) => post('setup/finish', {challenge, code}, 'otp');
 
-export async function registerAccount(username, email, password) {
+export async function registerAccount(username, password) {
   username = canonicalUsername(username);
   checkPassword(password);
   await opaque.ready;
   let first = opaque.client.startRegistration({password});
-  const response = await post('register/start', {username, email: String(email).trim(), registrationRequest: first.registrationRequest});
+  const response = await post('register/start', {username, registrationRequest: first.registrationRequest});
   let result = opaque.client.finishRegistration({
     password, clientRegistrationState: first.clientRegistrationState, registrationResponse: response.registrationResponse,
     identifiers: {client: username, server: serverIdentifier}, keyStretching: 'memory-constrained',
   });
   first = null;
   const registered = await post('register/finish', {challenge: response.challenge, registrationRecord: result.registrationRecord});
+  const wrappingSecret = await deriveWrappingSecret(result.exportKey, username);
   result = null;
-  return registered;
+  return {...registered, username, wrappingSecret};
 }
 
 export async function changePassword(username, currentPassword, newPassword, vault) {
@@ -113,7 +114,7 @@ export async function changePassword(username, currentPassword, newPassword, vau
 }
 
 // The server accepts this operation only after a recent verified passkey or
-// password proof. Email reset is accepted only after destruction of all vaults.
+// password proof.
 export async function replacePassword(username, newPassword, vault, oldWrappingSecret) {
   username = canonicalUsername(username);
   checkPassword(newPassword);

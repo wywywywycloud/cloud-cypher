@@ -1,5 +1,5 @@
 {
-  "checked_at_utc": "2026-09-26T13:58:45.223698+00:00",
+  "checked_at_utc": "2026-09-26T20:46:55.029278+00:00",
   "steps": [
     {
       "name": "django-check",
@@ -15,7 +15,7 @@
       "name": "django-tests",
       "status": "passed",
       "exit_code": 0,
-      "tests": 143
+      "tests": 144
     },
     {
       "name": "browser-crypto-auth-tests",
@@ -30,5 +30,6 @@
       "tests": 38
     }
   ],
-  "status": "passed"
+  "status": "passed",
+  "scope": "Full Nimbus integration checkout: Django checks/migrations and 144 backend tests; 20 client crypto/auth tests; 38 verifier/vendor tests. Executed by coordinator."
 }

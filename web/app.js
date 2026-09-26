@@ -11,7 +11,7 @@ const $ = id => document.getElementById(id);
 const state = {
   session: null, key: null, files: [], information: new Map(), generation: 0,
   busy: false, view: 'list', objectURLs: new Set(), controllers: new Set(),
-  previewURL: null, deleteTarget: null, resetChallenge: null, totpChallenge: null,
+  previewURL: null, deleteTarget: null, wrappingSecret: null, totpChallenge: null, resetChallenge: null,
 };
 const safeImages = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 const numberFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
@@ -67,6 +67,16 @@ function closePreview() {
 export function lockVault(showMessage = true) {
   state.generation += 1;
   state.key = null;
+  state.wrappingSecret = null;
+  state.totpChallenge = null;
+  state.resetChallenge = null;
+  $('reset-code').value = '';
+  $('telegram-link').hidden = true;
+  $('telegram-link').removeAttribute('href');
+  $('totp-secret').value = '';
+  $('totp-code').value = '';
+  $('totp-finish-form').hidden = true;
+  $('totp-start-button').hidden = false;
   state.files = [];
   state.information.clear();
   state.deleteTarget = null;
@@ -180,7 +190,9 @@ function validateSession(session) {
     throw new CypherError('Не удалось проверить сессию.');
   }
   if (session.authenticated) {
-    if (typeof session.user?.username !== 'string' || session.user.username.length > 150
+    if (['onboarding_required', 'telegram_ready', 'passkey_ready', 'totp_ready', 'upload_ready'].some(field => typeof session[field] !== 'boolean')
+        || ![null, 'telegram', 'passkey', 'totp', 'password'].includes(session.next_step)
+        || typeof session.user?.username !== 'string' || session.user.username.length > 150
         || !Number.isSafeInteger(session.quota_bytes) || session.quota_bytes < 0
         || !Number.isSafeInteger(session.used_bytes) || session.used_bytes < 0
         || session.vault === undefined) throw new CypherError('Не удалось проверить параметры хранилища.');
@@ -222,17 +234,27 @@ async function freshContext() {
 
 function render() {
   const authenticated = Boolean(state.session?.authenticated);
-  const opened = authenticated && Boolean(state.key);
+  const onboarding = authenticated && Boolean(state.session.onboarding_required) && Boolean(state.wrappingSecret || state.key);
+  const opened = authenticated && !state.session.onboarding_required && Boolean(state.key);
   $('loading-panel').hidden = true;
   $('public-panel').hidden = authenticated;
   $('account-toolbar').hidden = !authenticated;
-  $('locked-panel').hidden = !authenticated || opened;
+  $('locked-panel').hidden = !authenticated || opened || onboarding;
+  $('onboarding-panel').hidden = !onboarding;
   $('files-panel').hidden = !opened;
+  $('upload-backup-note').hidden = !opened || state.session.upload_ready;
   $('vault-footer').hidden = !authenticated || !state.session?.vault;
-  $('password-settings-button').hidden = !authenticated;
-  $('passkey-enrollment').hidden = !opened || Boolean(state.session?.passkey_ready);
+  $('password-settings-button').hidden = !opened;
+  const steps = ['password', 'telegram', 'passkey', 'totp'];
+  const current = steps.indexOf(state.session?.next_step);
+  for (const item of document.querySelectorAll('[data-step]')) {
+    const index = steps.indexOf(item.dataset.step);
+    item.dataset.state = index < current ? 'complete' : index === current ? 'current' : 'pending';
+    if (index === current) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
+  }
+  for (const step of steps.slice(1)) $(`${step}-step`).hidden = state.session?.next_step !== step;
   if (authenticated) {
-    $('account-name').textContent = state.session.user.email || state.session.user.username;
+    $('account-name').textContent = state.session.user.username;
     $('unlock-username').value = state.session.user.username;
     $('logout-csrf').value = state.session.csrf_token;
     $('quota-label').textContent = `${formatBytes(state.session.used_bytes)} / ${formatBytes(state.session.quota_bytes)}`;
@@ -245,11 +267,11 @@ function render() {
 }
 
 function applyBusy() {
-  const ids = ['upload-button', 'refresh-button', 'unlock-button', 'login-button', 'register-button', 'change-password-button', 'reset-vault-button', 'confirm-delete-button', 'password-settings-button', 'enroll-confirm-button', 'recovery-button', 'reset-send-button', 'after-reset-button', 'passkey-login-button', 'passkey-unlock-button'];
+  const ids = ['upload-button', 'refresh-button', 'unlock-button', 'login-button', 'register-button', 'change-password-button', 'confirm-delete-button', 'password-settings-button', 'recovery-button', 'passkey-login-button', 'passkey-unlock-button', 'enroll-passkey-button', 'telegram-start-button', 'telegram-check-button', 'totp-start-button', 'totp-finish-button', 'backup-check-button', 'reset-send-button', 'after-reset-button'];
   ids.forEach(id => { if ($(id)) $(id).disabled = state.busy; });
   $('confirm-reset-button').disabled = state.busy || $('reset-confirm').value !== 'DELETE ALL FILES';
-  $('upload-button').disabled = state.busy || !state.session?.passkey_ready;
-  $('file-input').disabled = state.busy || !state.session?.passkey_ready;
+  $('upload-button').disabled = state.busy || !state.session?.upload_ready;
+  $('file-input').disabled = state.busy || !state.session?.upload_ready;
   $('file-list').querySelectorAll('button').forEach(button => { button.disabled = state.busy; });
   $('files-panel').setAttribute('aria-busy', String(state.busy));
 }
@@ -277,6 +299,13 @@ export async function openVaultWithSecret(wrappingSecret, expectedUsername, pass
   if (passkeyVault && !session.vault) throw new CypherError('Хранилище passkey больше не существует.');
   const generation = state.generation;
   const username = session.user.username;
+  state.wrappingSecret = wrappingSecret;
+  if (session.next_step === 'telegram') {
+    clearPasswords();
+    document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+    render();
+    return;
+  }
   let vault = session.vault;
   let key;
   if (vault) {
@@ -296,7 +325,7 @@ export async function openVaultWithSecret(wrappingSecret, expectedUsername, pass
   clearPasswords();
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   render();
-  await loadFiles();
+  if (!session.onboarding_required) { state.wrappingSecret = null; await loadFiles(); }
 }
 
 function makeElement(tag, className, text) {
@@ -462,7 +491,7 @@ async function obtainFile(record, preview) {
 }
 
 async function uploadFiles(fileList) {
-  if (!state.session?.passkey_ready) throw new CypherError('Перед загрузкой настройте passkey для восстановления доступа.');
+  if (!state.session?.upload_ready) throw new CypherError('Для загрузки завершите настройку доступа и подтвердите резервирование passkey.');
   const files = Array.from(fileList);
   if (!files.length) return;
   const expected = await freshContext();
@@ -541,7 +570,7 @@ function openResetDialog() {
   state.resetChallenge = null;
   $('reset-confirm').value = '';
   $('reset-code').value = '';
-  $('reset-email').value = state.session?.user?.email || '';
+  $('reset-username').value = state.session?.user?.username || $('auth-username').value;
   $('reset-form').hidden = true;
   $('reset-start-form').hidden = false;
   openDialog('reset-dialog');
@@ -561,7 +590,7 @@ async function signIn(username, password) {
   const result = await loginAccount(username, password);
   if (state.generation !== generation) throw new SessionChanged();
   await openVaultWithSecret(result.wrappingSecret, result.username);
-  setStatus('Хранилище открыто.', 'success');
+  setStatus(state.session.onboarding_required ? 'Продолжите обязательную настройку доступа.' : 'Хранилище открыто.', 'success');
 }
 
 function openDialog(id) {
@@ -578,7 +607,7 @@ function setTheme(theme) {
 function wireEvents() {
   setCodePrompt(method => new Promise((resolve, reject) => {
     $('otp-code').value = '';
-    $('otp-description').textContent = method === 'totp' ? 'Введите код из вашего TOTP-генератора.' : 'Введите код, отправленный на вашу почту.';
+    $('otp-description').textContent = 'Введите код из вашего TOTP-генератора.';
     const cancel = () => { cleanup(); reject(new CypherError('Вход отменён.')); };
     const submit = event => { event.preventDefault(); const code = $('otp-code').value; cleanup(); resolve(code); };
     const cleanup = () => {
@@ -595,37 +624,54 @@ function wireEvents() {
     $('otp-dialog').addEventListener('close', cancel);
     $('otp-dialog').showModal();
   }));
-  $('totp-settings-button').addEventListener('click', () => {
-    $('totp-start-form').hidden = false;
-    $('totp-finish-form').hidden = true;
-    openDialog('totp-dialog');
-  });
-  $('totp-dialog').addEventListener('close', () => { $('totp-secret').value = ''; $('totp-code').value = ''; state.totpChallenge = null; });
-  $('totp-start-form').addEventListener('submit', event => {
-    event.preventDefault();
-    const password = $('totp-password').value;
-    clearPasswords();
-    runAction(async () => {
-      const generation = state.generation;
-      const username = state.session.user.username;
-      await loginAccount(username, password);
-      if (generation !== state.generation || !$('totp-dialog').open) throw new SessionChanged();
-      const session = await refreshSession();
-      if (session.user?.username !== username) throw new SessionChanged();
-      const setup = await beginTotpSetup();
-      if (generation !== state.generation || !$('totp-dialog').open || state.session.user?.username !== username) throw new SessionChanged();
-      state.totpChallenge = setup.challenge;
-      $('totp-secret').value = setup.secret;
-      $('totp-start-form').hidden = true;
-      $('totp-finish-form').hidden = false;
-    });
-  });
+  $('telegram-start-button').addEventListener('click', () => runAction(async () => {
+    const response = await fetch('/auth/telegram/link/', {method: 'POST', credentials: 'same-origin', redirect: 'error', cache: 'no-store', headers: {'X-CSRFToken': state.session.csrf_token, 'Content-Type': 'application/json'}, body: '{}'});
+    const result = await jsonResponse(response);
+    if (!response.ok) throw new CypherError('Не удалось создать ссылку Telegram. Повторите вход или попробуйте позже.');
+    const url = new URL(result.url);
+    if (url.protocol !== 'https:' || url.hostname !== 't.me' || url.username || url.password) throw new CypherError('Сервер вернул неверный адрес Telegram.');
+    $('telegram-link').href = url.href;
+    $('telegram-link').hidden = false;
+    $('telegram-start-button').textContent = 'Получить новую ссылку';
+    $('telegram-status').textContent = 'Ссылка готова. Откройте бота и подтвердите свой аккаунт.';
+  }));
+  $('telegram-check-button').addEventListener('click', () => runAction(async () => {
+    const session = await refreshSession();
+    if (!session.telegram_ready) { $('telegram-status').textContent = 'Подтверждение пока не получено. Завершите действие в Telegram и повторите проверку.'; return; }
+    await openVaultWithSecret(state.wrappingSecret, session.user.username);
+  }));
+  $('enroll-passkey-button').addEventListener('click', () => runAction(async () => {
+    const session = await refreshSession();
+    if (!state.wrappingSecret || !session.vault) throw new CypherError('Войдите повторно, чтобы продолжить настройку passkey.');
+    const expected = context();
+    await enrollPasskey(session.vault, state.wrappingSecret);
+    checkContext(expected);
+    await refreshSession();
+    setStatus('Passkey сохранён. Подключите генератор кодов.', 'success');
+  }));
+  $('totp-start-button').addEventListener('click', () => runAction(async () => {
+    const expected = context();
+    const setup = await beginTotpSetup();
+    checkContext(expected);
+    state.totpChallenge = setup.challenge;
+    $('totp-secret').value = setup.secret;
+    $('totp-start-button').hidden = true;
+    $('totp-finish-form').hidden = false;
+  }));
   $('totp-finish-form').addEventListener('submit', event => {
     event.preventDefault();
     runAction(async () => {
+      const expected = context();
       await finishTotpSetup(state.totpChallenge, $('totp-code').value);
-      $('totp-dialog').close();
-      setStatus('TOTP подключён. При входе с паролем используйте код из генератора вместо письма.', 'success');
+      checkContext(expected);
+      state.totpChallenge = null;
+      $('totp-secret').value = '';
+      $('totp-code').value = '';
+      const session = await refreshSession();
+      if (session.onboarding_required) throw new CypherError('Настройка ещё не завершена. Повторите вход.');
+      state.wrappingSecret = null;
+      await loadFiles();
+      setStatus('Настройка завершена. Ваше хранилище открыто.', 'success');
     });
   });
   try {
@@ -656,22 +702,13 @@ function wireEvents() {
   $('register-form').addEventListener('submit', event => {
     event.preventDefault();
     if ($('register-password').value !== $('register-password-confirm').value) { setStatus('Пароли не совпадают.', 'error'); return; }
-    const username = `u${crypto.randomUUID().replaceAll('-', '')}`;
-    const email = $('register-email').value.trim();
+    const username = $('register-username').value.trim().toLowerCase();
     const password = $('register-password').value;
     clearPasswords();
     runAction(async () => {
-      const result = await registerAccount(username, email, password);
-      if (result.verification_required && typeof result.verify_url === 'string') {
-        const destination = new URL(result.verify_url, location.origin);
-        if (destination.origin !== location.origin) throw new CypherError('Сервер вернул неверный адрес подтверждения.');
-        location.assign(destination.href);
-      } else {
-        $('register-dialog').close();
-        $('auth-username').value = username;
-        setStatus('Аккаунт создан. Войдите, чтобы открыть хранилище.', 'success');
-        openDialog('login-dialog');
-      }
+      const result = await registerAccount(username, password);
+      await openVaultWithSecret(result.wrappingSecret, result.username);
+      setStatus('Аккаунт создан. Подтвердите Telegram, чтобы продолжить.', 'success');
     });
   });
   $('password-settings-button').addEventListener('click', () => openDialog('password-dialog'));
@@ -725,22 +762,23 @@ function wireEvents() {
   $('confirm-delete-button').addEventListener('click', () => runAction(deleteFile));
   $('reset-vault-button').addEventListener('click', openResetDialog);
   $('lost-passkey-button').addEventListener('click', () => { $('login-dialog').close(); openResetDialog(); });
-  $('cancel-reset-button').addEventListener('click', () => $('reset-dialog').close());
   $('reset-confirm').addEventListener('input', applyBusy);
   $('reset-start-form').addEventListener('submit', event => {
     event.preventDefault();
     runAction(async () => {
-      const result = await beginPasskeyReset($('reset-email').value.trim());
+      const result = await beginPasskeyReset($('reset-username').value.trim().toLowerCase());
       state.resetChallenge = result.challenge;
       $('reset-start-form').hidden = true;
       $('reset-form').hidden = false;
-      setStatus('Если аккаунт существует, код отправлен на его почту.');
+      setStatus('Если аккаунт доступен для сброса, код отправлен в привязанный Telegram.');
     });
   });
   $('reset-form').addEventListener('submit', event => {
     event.preventDefault();
     runAction(async () => {
       await finishPasskeyReset(state.resetChallenge, $('reset-code').value, $('reset-confirm').value);
+      state.resetChallenge = null;
+      $('reset-code').value = '';
       lockVault(false);
       await refreshSession();
       openDialog('new-password-dialog');
@@ -753,31 +791,18 @@ function wireEvents() {
     clearPasswords();
     runAction(async () => {
       const session = await refreshSession();
-      if (session.vault) throw new CypherError('Сброс хранилища не подтверждён.');
+      if (!session.password_setup_required || session.vault) throw new CypherError('Сброс хранилища не подтверждён.');
       const result = await replacePassword(session.user.username, password, null, null);
       await openVaultWithSecret(result.wrappingSecret, result.username);
-      setStatus('Создано пустое хранилище. Подключите новый passkey перед загрузкой.', 'success');
+      setStatus('Создано пустое хранилище. Настройте новый passkey и генератор кодов.', 'success');
     });
   });
+  $('backup-check-button').addEventListener('click', () => runAction(passkeySignIn));
   $('passkey-login-button').addEventListener('click', () => runAction(passkeySignIn));
   $('passkey-unlock-button').addEventListener('click', () => runAction(passkeySignIn));
   for (const id of ['forgot-password-button', 'locked-forgot-button']) {
     $(id).addEventListener('click', () => { $('login-dialog').close(); openDialog('recovery-dialog'); });
   }
-  $('enroll-passkey-button').addEventListener('click', () => openDialog('enroll-dialog'));
-  $('enroll-form').addEventListener('submit', event => {
-    event.preventDefault();
-    const password = $('enroll-password').value;
-    clearPasswords();
-    runAction(async () => {
-      const result = await loginAccount(state.session.user.username, password);
-      const session = await refreshSession();
-      await enrollPasskey(session.vault, result.wrappingSecret);
-      $('enroll-dialog').close();
-      await refreshSession();
-      setStatus('Passkey подключён. Теперь можно загружать файлы.', 'success');
-    });
-  });
   $('recovery-form').addEventListener('submit', event => {
     event.preventDefault();
     if ($('recovery-password').value !== $('recovery-password-confirm').value) { setStatus('Пароли не совпадают.', 'error'); return; }
@@ -796,13 +821,22 @@ function wireEvents() {
   });
   window.addEventListener('pagehide', () => lockVault(false));
   window.addEventListener('pageshow', event => { if (event.persisted) refreshSession().catch(showError); });
-  window.addEventListener('focus', () => { if (!state.busy && state.session) refreshSession().catch(showError); });
+  window.addEventListener('focus', () => {
+    if (!state.busy && state.session) refreshSession().then(session => {
+      // Telegram completes in another app/tab. Continue with the in-memory
+      // OPAQUE secret when the user returns, before offering passkey setup.
+      if (session.authenticated && session.telegram_ready && state.wrappingSecret && !state.key) {
+        return runAction(() => openVaultWithSecret(state.wrappingSecret, session.user.username));
+      }
+    }).catch(showError);
+  });
 }
 
 async function boot() {
   wireEvents();
   try {
     await refreshSession();
+    if (state.session?.password_setup_required) openDialog('new-password-dialog');
     if (location.hash === '#login' && !state.session?.authenticated) openDialog('login-dialog');
     if (location.hash === '#register' && !state.session?.authenticated) openDialog('register-dialog');
   } catch (error) {

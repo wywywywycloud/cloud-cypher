@@ -63,7 +63,7 @@ export function publicCredential(credential) {
 async function secret(credential) {
   const first = credential.getClientExtensionResults()?.prf?.results?.first;
   if (!first || first.byteLength !== 32) {
-    throw new CypherError('Этот браузер или менеджер не поддерживает шифрование через passkey (PRF). Попробуйте совместимый менеджер; загрузка пока закрыта.');
+    throw new CypherError('Этот браузер или менеджер не поддерживает шифрование через passkey (PRF). Попробуйте совместимый менеджер; доступ к файлам остаётся закрыт.');
   }
   const raw = new Uint8Array(first);
   try {
@@ -101,8 +101,8 @@ export async function enrollPasskey(vault, wrappingSecret) {
     credential: publicCredential(assertion), vault_id: vault.id, wrapped_key});
 }
 
-export async function loginPasskey(email = '') {
-  const start = await post('login/start', email ? {email} : {});
+export async function loginPasskey(username = '') {
+  const start = await post('login/start', username ? {username} : {});
   const credential = await getCredential('get', start.publicKey);
   const wrappingSecret = await secret(credential);
   const result = await post('login/finish', {challenge: start.challenge, credential: publicCredential(credential)});
@@ -111,5 +111,6 @@ export async function loginPasskey(email = '') {
   return {...result, wrappingSecret};
 }
 
-export const beginPasskeyReset = email => post('reset/start', {email});
+
+export const beginPasskeyReset = username => post('reset/start', {username});
 export const finishPasskeyReset = (challenge, code, confirmation) => post('reset/finish', {challenge, code, confirmation});

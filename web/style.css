@@ -307,3 +307,35 @@ dialog::backdrop { background:#10132399; backdrop-filter:blur(4px); }
   .file-actions .icon-button { width:26px; }
   #upload-button { padding-inline:10px; }
 }
+
+.onboarding-panel { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:64px; align-items:start; padding:20px 0 45px; }
+.onboarding-intro h1 { font-size:36px; margin-bottom:18px; }
+.onboarding-intro > p { color:var(--muted); max-width:420px; }
+.setup-steps { list-style:none; padding:0; margin:32px 0 0; display:grid; gap:22px; }
+.setup-steps li { display:flex; gap:14px; color:var(--muted); align-items:center; }
+.setup-steps li > span { width:34px; height:34px; border:1px solid var(--border); border-radius:50%; display:grid; place-items:center; flex-shrink:0; font-size:13px; }
+.setup-steps strong,.setup-steps small { display:block; }
+.setup-steps strong { font-size:14px; font-weight:550; }
+.setup-steps small { font-size:12px; margin-top:3px; }
+.setup-steps [data-state="current"] { color:var(--text); }
+.setup-steps [data-state="current"] > span { background:var(--accent); color:var(--surface); border-color:var(--accent); }
+.setup-steps [data-state="complete"] > span { background:var(--accent-soft); color:var(--accent); border-color:transparent; }
+.onboarding-card { min-width:0; padding:30px; border:1px solid var(--border); border-radius:20px; background:var(--surface); box-shadow:var(--shadow); }
+.onboarding-card h2 { font-size:24px; margin:0 0 16px; }
+.onboarding-card p { color:var(--muted); line-height:1.75; }
+.onboarding-card .subtle { margin-top:20px; font-size:12px; }
+.onboarding-card .button { white-space:normal; text-align:center; }
+@media(max-width:700px) {
+  .onboarding-panel { grid-template-columns:minmax(0,1fr); gap:28px; padding-top:5px; }
+  .onboarding-intro h1 { font-size:30px; }
+  .setup-steps { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 10px; margin-top:24px; }
+  .setup-steps li { gap:8px; align-items:flex-start; }
+  .setup-steps li > span { width:27px; height:27px; }
+  .setup-steps strong { font-size:12px; }
+  .setup-steps small { font-size:10px; }
+  .onboarding-card { padding:23px; }
+  .onboarding-card h2 { font-size:22px; }
+}
+
+.upload-note { padding:20px; border:1px solid var(--border); border-radius:14px; margin-bottom:24px; background:var(--accent-soft); }
+.upload-note p { margin-bottom:12px; color:var(--muted); }
