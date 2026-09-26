@@ -60,6 +60,8 @@ class VerificationTests(unittest.TestCase):
             "account.js": b'import "./vendor/opaque.js";\n',
             "passkeys.js": b'export const passkey = "test fixture";\n',
             "vendor/opaque.js": b'export const opaque = "pinned fixture";\n',
+            "totp-qr.js": b'import "./vendor/qrcode.js";\n',
+            "vendor/qrcode.js": b'export const qrcode = "pinned fixture";\n',
             "style.css": b"body { color: black; }\n",
             "verify.html": b"<p>Independent verification instructions.</p>\n",
         }
@@ -97,7 +99,7 @@ class VerificationTests(unittest.TestCase):
         self.assertNotIn("verify.html", self.manifest["required_paths"])
 
     def test_authentication_and_opaque_runtime_are_required_when_present(self):
-        for path in ("http.js", "account.js", "passkeys.js", "vendor/opaque.js"):
+        for path in ("http.js", "account.js", "passkeys.js", "vendor/opaque.js", "totp-qr.js", "vendor/qrcode.js"):
             self.assertIn(path, self.manifest["required_paths"])
             har = self.har()
             har["log"]["entries"] = [entry for entry in har["log"]["entries"] if entry["request"]["url"] != self.base + path]

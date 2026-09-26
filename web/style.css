@@ -339,3 +339,14 @@ dialog::backdrop { background:#10132399; backdrop-filter:blur(4px); }
 
 .upload-note { padding:20px; border:1px solid var(--border); border-radius:14px; margin-bottom:24px; background:var(--accent-soft); }
 .upload-note p { margin-bottom:12px; color:var(--muted); }
+
+.onboarding-card .status-message[data-kind="error"] { color:var(--danger); }
+
+.totp-qr { display:block; width:260px; max-width:100%; height:auto; margin:20px auto; background:#fff; image-rendering:pixelated; }
+#totp-manual { margin:20px 0; overflow-wrap:anywhere; }
+#totp-manual summary { cursor:pointer; color:var(--muted); line-height:1.5; }
+
+.button-skip { background:#fff; color:#242032; border-color:#d7d2e3; margin-top:12px; }
+.button-skip:hover:not(:disabled) { background:#f1edf8; }
+#skip-passkey-dialog .button + .button { margin-top:12px; }
+#skip-passkey-dialog .button-danger { background:#b42336; color:#fff; }

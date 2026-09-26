@@ -6,6 +6,8 @@ import {
 import { loginAccount, registerAccount, changePassword, replacePassword, setCodePrompt, beginTotpSetup, finishTotpSetup } from './account.js';
 import { enrollPasskey, loginPasskey, beginPasskeyReset, finishPasskeyReset } from './passkeys.js';
 
+import {drawTotpQr, clearTotpQr} from './totp-qr.js';
+
 const API = '/api/cypher/';
 const $ = id => document.getElementById(id);
 const state = {
@@ -27,9 +29,13 @@ function formatBytes(value) {
 }
 
 function setStatus(message, kind = 'info') {
-  $('status-message').textContent = message;
-  $('status-message').dataset.kind = kind;
-  $('status-message').hidden = !message;
+  const inSetup = !$('onboarding-panel').hidden;
+  for (const id of ['status-message', 'onboarding-status']) {
+    const slot = $(id);
+    slot.textContent = message;
+    slot.dataset.kind = kind;
+    slot.hidden = !message || (id === 'onboarding-status' ? !inSetup : inSetup);
+  }
   if (kind === 'error') {
     const errorSlot = document.querySelector('dialog[open] .dialog-error');
     if (errorSlot) { errorSlot.textContent = message; errorSlot.hidden = false; }
@@ -74,6 +80,8 @@ export function lockVault(showMessage = true) {
   $('telegram-link').hidden = true;
   $('telegram-link').removeAttribute('href');
   $('totp-secret').value = '';
+  clearTotpQr($('totp-qr'));
+  $('totp-manual').open = false;
   $('totp-code').value = '';
   $('totp-finish-form').hidden = true;
   $('totp-start-button').hidden = false;
@@ -267,7 +275,7 @@ function render() {
 }
 
 function applyBusy() {
-  const ids = ['upload-button', 'refresh-button', 'unlock-button', 'login-button', 'register-button', 'change-password-button', 'confirm-delete-button', 'password-settings-button', 'recovery-button', 'passkey-login-button', 'passkey-unlock-button', 'enroll-passkey-button', 'telegram-start-button', 'telegram-check-button', 'totp-start-button', 'totp-finish-button', 'backup-check-button', 'reset-send-button', 'after-reset-button'];
+  const ids = ['skip-passkey-button', 'accept-passkey-risk-button', 'return-passkey-button', 'upload-button', 'refresh-button', 'unlock-button', 'login-button', 'register-button', 'change-password-button', 'confirm-delete-button', 'password-settings-button', 'recovery-button', 'passkey-login-button', 'passkey-unlock-button', 'enroll-passkey-button', 'telegram-start-button', 'telegram-check-button', 'totp-start-button', 'totp-finish-button', 'backup-check-button', 'reset-send-button', 'after-reset-button'];
   ids.forEach(id => { if ($(id)) $(id).disabled = state.busy; });
   $('confirm-reset-button').disabled = state.busy || $('reset-confirm').value !== 'DELETE ALL FILES';
   $('upload-button').disabled = state.busy || !state.session?.upload_ready;
@@ -640,6 +648,16 @@ function wireEvents() {
     if (!session.telegram_ready) { $('telegram-status').textContent = 'Подтверждение пока не получено. Завершите действие в Telegram и повторите проверку.'; return; }
     await openVaultWithSecret(state.wrappingSecret, session.user.username);
   }));
+  $('skip-passkey-button').addEventListener('click', () => openDialog('skip-passkey-dialog'));
+  $('return-passkey-button').addEventListener('click', () => $('skip-passkey-dialog').close());
+  $('accept-passkey-risk-button').addEventListener('click', () => runAction(async () => {
+    const expected = context();
+    await request('passkey/skip/', {method: 'POST', json: {accept_risk: true}});
+    checkContext(expected);
+    $('skip-passkey-dialog').close();
+    await refreshSession();
+    setStatus('Риск принят. Подключите генератор кодов.', 'success');
+  }));
   $('enroll-passkey-button').addEventListener('click', () => runAction(async () => {
     const session = await refreshSession();
     if (!state.wrappingSecret || !session.vault) throw new CypherError('Войдите повторно, чтобы продолжить настройку passkey.');
@@ -655,6 +673,7 @@ function wireEvents() {
     checkContext(expected);
     state.totpChallenge = setup.challenge;
     $('totp-secret').value = setup.secret;
+    drawTotpQr($('totp-qr'), setup.secret, state.session.user.username);
     $('totp-start-button').hidden = true;
     $('totp-finish-form').hidden = false;
   }));
@@ -666,6 +685,8 @@ function wireEvents() {
       checkContext(expected);
       state.totpChallenge = null;
       $('totp-secret').value = '';
+      clearTotpQr($('totp-qr'));
+      $('totp-manual').open = false;
       $('totp-code').value = '';
       const session = await refreshSession();
       if (session.onboarding_required) throw new CypherError('Настройка ещё не завершена. Повторите вход.');
