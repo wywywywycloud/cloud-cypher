@@ -62,6 +62,8 @@ class VerificationTests(unittest.TestCase):
             "vendor/opaque.js": b'export const opaque = "pinned fixture";\n',
             "totp-qr.js": b'import "./vendor/qrcode.js";\n',
             "vendor/qrcode.js": b'export const qrcode = "pinned fixture";\n',
+            "text-preview.js": b'import "./vendor/highlight.js";\n',
+            "vendor/highlight.js": b'export const highlight = "pinned fixture";\n',
             "style.css": b"body { color: black; }\n",
             "verify.html": b"<p>Independent verification instructions.</p>\n",
         }

@@ -7,6 +7,7 @@ import { loginAccount, registerAccount, changePassword, replacePassword, setCode
 import { enrollPasskey, loginPasskey, beginPasskeyReset, finishPasskeyReset } from './passkeys.js';
 
 import {drawTotpQr, clearTotpQr} from './totp-qr.js';
+import {canPreviewText, decodeText, renderText} from './text-preview.js';
 
 const API = '/api/cypher/';
 const $ = id => document.getElementById(id);
@@ -65,7 +66,11 @@ function releaseURL(url) {
 function closePreview() {
   $('preview-image').removeAttribute('src');
   $('preview-image').alt = '';
-  $('preview-title').textContent = 'Просмотр изображения';
+  $('preview-image').hidden = true;
+  $('preview-code').replaceChildren();
+  $('preview-text').hidden = true;
+  $('preview-details').textContent = '';
+  $('preview-title').textContent = 'Просмотр файла';
   releaseURL(state.previewURL);
   state.previewURL = null;
 }
@@ -391,7 +396,12 @@ function renderFiles() {
     const symbol = makeElement('span', `file-icon${safeImages.has(metadata?.type) ? ' image-icon' : ''}`);
     symbol.append(icon(safeImages.has(metadata?.type) ? 'image' : 'file'));
     const text = makeElement('div', 'file-name-wrap');
-    const nameElement = makeElement('span', 'file-name', name);
+    const previewable = metadata && (safeImages.has(metadata.type) || canPreviewText(name, metadata.type));
+    const nameElement = makeElement(previewable ? 'button' : 'span', 'file-name', name);
+    if (previewable) {
+      nameElement.type = 'button';
+      nameElement.addEventListener('click', () => runAction(() => obtainFile(record, true)));
+    }
     nameElement.title = name;
     text.append(nameElement, makeElement('span', 'file-type', invalid ? 'Не удалось проверить метаданные' : fileType(metadata.type)));
     main.append(symbol, text);
@@ -400,7 +410,7 @@ function renderFiles() {
     const date = makeElement('span', 'file-date', timestamp && Number.isFinite(timestamp.getTime()) ? dateFormat.format(timestamp) : '—');
     const actions = makeElement('div', 'file-actions');
     if (metadata) {
-      if (safeImages.has(metadata.type)) actions.append(actionButton(`Просмотреть ${name}`, 'image', () => runAction(() => obtainFile(record, true)), 'preview-file'));
+      if (previewable) actions.append(actionButton(`Просмотреть ${name}`, safeImages.has(metadata.type) ? 'image' : 'file', () => runAction(() => obtainFile(record, true)), 'preview-file'));
       actions.append(actionButton(`Скачать ${name}`, 'download', () => runAction(() => obtainFile(record, false)), 'download-file'));
     }
     actions.append(actionButton(`Удалить ${name}`, 'trash', () => {
@@ -480,14 +490,26 @@ async function obtainFile(record, preview) {
   try {
     checkContext(expected);
     if (preview) {
-      if (!safeImages.has(plaintext.type) || !matchesRaster(plaintext.type, plaintext.bytes)) {
-        throw new CypherError('Формат изображения не подходит для просмотра. Файл можно скачать.');
-      }
       closePreview();
-      state.previewURL = createObjectURL(new Blob([plaintext.bytes], { type: plaintext.type }));
+      if (safeImages.has(plaintext.type)) {
+        if (!matchesRaster(plaintext.type, plaintext.bytes)) throw new CypherError('Формат изображения не подходит для просмотра. Файл можно скачать.');
+        state.previewURL = createObjectURL(new Blob([plaintext.bytes], { type: plaintext.type }));
+        $('preview-image').hidden = false;
+        $('preview-image').alt = plaintext.name;
+        $('preview-image').src = state.previewURL;
+      } else {
+        let decoded;
+        try {
+          if (!canPreviewText(plaintext.name, plaintext.type)) throw new Error('unsupported');
+          decoded = decodeText(plaintext.bytes);
+        } catch { throw new CypherError('Это не обычный текстовый файл. Его можно скачать.'); }
+        const result = renderText($('preview-code'), decoded.text, plaintext.name);
+        $('preview-details').textContent = `${result.language || 'Текст'} · ${decoded.encoding.toUpperCase()}${result.language && !result.highlighted ? ' · Без подсветки для большого файла' : ''}${decoded.text.length === 0 ? ' · Пустой файл' : ''}`;
+        $('preview-text').hidden = false;
+        $('preview-text').scrollTop = 0;
+        $('preview-text').scrollLeft = 0;
+      }
       $('preview-title').textContent = plaintext.name;
-      $('preview-image').alt = plaintext.name;
-      $('preview-image').src = state.previewURL;
       $('preview-dialog').showModal();
     } else {
       downloadBytes(plaintext.bytes, plaintext.name);
@@ -750,7 +772,20 @@ function wireEvents() {
       setStatus('Пароль изменён. Ваши файлы сохранены.', 'success');
     });
   });
-  $('logout-form').addEventListener('submit', () => lockVault(false));
+  $('logout-form').addEventListener('submit', event => {
+    event.preventDefault();
+    if (state.busy) return;
+    lockVault(false);
+    runAction(async () => {
+      const session = await refreshSession();
+      const response = await fetch('/auth/logout/', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        redirect: 'follow', headers: {'X-CSRFToken': session.csrf_token},
+      });
+      if (!response.ok) throw new CypherError('Не удалось выйти. Повторите попытку.');
+      location.assign('/vault/');
+    });
+  });
   $('lock-button').addEventListener('click', () => lockVault());
   $('upload-button').addEventListener('click', () => $('file-input').click());
   $('file-input').addEventListener('change', () => {

@@ -172,6 +172,23 @@ dialog::backdrop { background:#10132399; backdrop-filter:blur(4px); }
 .dialog-heading h2 { font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .preview-dialog img { max-width:100%; max-height:65vh; display:block; margin:auto; border-radius:7px; }
 .preview-dialog > p { margin-top:15px; font-size:11px; }
+.file-name:is(button) { display:block; padding:0; border:0; background:none; color:inherit; text-align:left; font:inherit; font-weight:600; cursor:pointer; max-width:100%; }
+.file-name:is(button):hover { text-decoration:underline; }
+.preview-text { --code-bg:#fff; --code-text:#000; --code-keyword:#0000ff; --code-string:#a31515; --code-comment:#008000; --code-number:#098658; --code-function:#795e26; --code-type:#267f99; --code-variable:#001080; margin:16px 0 0; padding:18px; max-height:65vh; min-height:180px; overflow:auto; overscroll-behavior:contain; border:1px solid var(--border); border-radius:8px; background:var(--code-bg); color:var(--code-text); text-align:left; tab-size:4; white-space:pre; font:13px/1.6 Consolas,'Cascadia Code','Liberation Mono',monospace; }
+:root[data-theme="dark"] .preview-text { --code-bg:#1e1e1e; --code-text:#d4d4d4; --code-keyword:#569cd6; --code-string:#ce9178; --code-comment:#6a9955; --code-number:#b5cea8; --code-function:#dcdcaa; --code-type:#4ec9b0; --code-variable:#9cdcfe; }
+@media(prefers-color-scheme:dark) { :root:not([data-theme]) .preview-text { --code-bg:#1e1e1e; --code-text:#d4d4d4; --code-keyword:#569cd6; --code-string:#ce9178; --code-comment:#6a9955; --code-number:#b5cea8; --code-function:#dcdcaa; --code-type:#4ec9b0; --code-variable:#9cdcfe; } }
+.preview-text code { font:inherit; }
+.preview-text .hljs-keyword, .preview-text .hljs-literal, .preview-text .hljs-selector-tag, .preview-text .hljs-name { color:var(--code-keyword); }
+.preview-text .hljs-string, .preview-text .hljs-regexp, .preview-text .hljs-template-tag { color:var(--code-string); }
+.preview-text .hljs-comment, .preview-text .hljs-quote { color:var(--code-comment); }
+.preview-text .hljs-number { color:var(--code-number); }
+.preview-text .hljs-title, .preview-text .hljs-section { color:var(--code-function); }
+.preview-text .hljs-type, .preview-text .hljs-built_in, .preview-text .hljs-title.class_ { color:var(--code-type); }
+.preview-text .hljs-attr, .preview-text .hljs-attribute, .preview-text .hljs-variable, .preview-text .hljs-property { color:var(--code-variable); }
+.preview-text .hljs-emphasis { font-style:italic; }
+.preview-text .hljs-strong { font-weight:bold; }
+.preview-text .hljs-addition { color:var(--code-comment); }
+.preview-text .hljs-deletion { color:var(--code-string); }
 .action-dialog { width:450px; }
 .action-dialog > h2 { font-size:24px; margin-bottom:14px; }
 .action-dialog > p { color:var(--muted); font-size:14px; line-height:1.75; overflow-wrap:anywhere; }

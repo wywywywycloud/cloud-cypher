@@ -15,3 +15,9 @@ The separately distributed Nimbus backend retains its existing LGPL-3.0-or-later
 license and third-party notices. This license does not relicense that project.
 
 QR code generation includes qrcode-generator 2.0.4, Copyright (c) 2009 Kazuhiko Arase, MIT license. See vendor/qrcode/LICENSE and provenance.json.
+
+Highlight.js 11.11.1 (common ES build), BSD-3-Clause.
+Copyright 2006-2024 Josh Goebel and other contributors.
+Source: https://github.com/highlightjs/highlight.js/tree/11.11.1
+Vendored from https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/es/highlight.min.js
+License: vendor/HIGHLIGHT-LICENSE

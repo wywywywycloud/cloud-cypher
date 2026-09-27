@@ -1,0 +1,3 @@
+# Browser delivery manifests and vendor hashes require identical bytes on all OSes.
+web/** text eol=lf
+release-manifest.json text eol=lf

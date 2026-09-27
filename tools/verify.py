@@ -22,7 +22,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 FORMAT = "cloud-cypher-static-manifest"
 MAX_BODY = 32 * 1024 * 1024
 MAX_JSON = 128 * 1024 * 1024
-CORE = ("index.html", "app.js", "crypto.js", "http.js", "account.js", "passkeys.js", "totp-qr.js", "vendor/opaque.js", "vendor/qrcode.js", "style.css")
+CORE = ("index.html", "app.js", "crypto.js", "http.js", "account.js", "passkeys.js", "totp-qr.js", "text-preview.js", "vendor/highlight.js", "vendor/opaque.js", "vendor/qrcode.js", "style.css")
 SECURITY_HEADERS = frozenset({
     "content-security-policy", "x-content-type-options", "referrer-policy",
     "cross-origin-opener-policy", "cross-origin-embedder-policy",

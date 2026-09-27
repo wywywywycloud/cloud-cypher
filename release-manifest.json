@@ -6,9 +6,9 @@
       "sha256": "1b8389e4750e5cab4c9894c1fbdb24d811165ee58d9b6078c34d7b0e75f0f59d"
     },
     {
-      "bytes": 43364,
+      "bytes": 45288,
       "path": "app.js",
-      "sha256": "938e86f3b78eb0df30bbc93add7035a66126708eb5fa062fffa4845b31de6707"
+      "sha256": "87f8ac92aae5bdec165ac4c501788e3ad5f949d858d76b998d249adc0db59538"
     },
     {
       "bytes": 11886,
@@ -21,9 +21,9 @@
       "sha256": "409f8d923a38b8446dd079a53bb0d9cbcffaa51e0c7da4e0b530203b9ad17b2f"
     },
     {
-      "bytes": 27194,
+      "bytes": 27362,
       "path": "index.html",
-      "sha256": "52e7eb0b02f68303cf4e947e275bad4a4778419a63243e2b968fb7fde6de806d"
+      "sha256": "2d666a07f096c929f30cc6693744214c29e8797f76509d33d962536d1fceaf92"
     },
     {
       "bytes": 8153,
@@ -31,14 +31,24 @@
       "sha256": "7f569713ec845fa96c87bd43d87fd3dc3042c7528ce9d1dabe288afbbe150a22"
     },
     {
-      "bytes": 27588,
+      "bytes": 29916,
       "path": "style.css",
-      "sha256": "531b3b63bde61edf6c46a92867a766812c50be5ec72482135d7929939d03df4d"
+      "sha256": "17a8ef7309de51706b43397d508343bac5d03650e592c0395b4abbc015151271"
+    },
+    {
+      "bytes": 3123,
+      "path": "text-preview.js",
+      "sha256": "8e7ab673e02206ef24f108e335259fe173d149bde26f0f74ae224e72f2ee73b8"
     },
     {
       "bytes": 1648,
       "path": "totp-qr.js",
       "sha256": "bff4b30ba25964f0757f8c3b585425cd3efe7ebeec7ee54602277a15782d368a"
+    },
+    {
+      "bytes": 127394,
+      "path": "vendor/highlight.js",
+      "sha256": "7865839949f0764d9e0a21e311a4e2c42633eeaee8ca5ec127b86438565731fe"
     },
     {
       "bytes": 434604,
@@ -65,6 +75,8 @@
     "account.js",
     "passkeys.js",
     "totp-qr.js",
+    "text-preview.js",
+    "vendor/highlight.js",
     "vendor/opaque.js",
     "vendor/qrcode.js",
     "style.css"
