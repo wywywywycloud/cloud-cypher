@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
-  CypherError, MAX_PLAINTEXT_BYTES, TAG_BYTES, assertUuid, createVault,
+  encryptFolder, decryptFolder, CypherError, MAX_PLAINTEXT_BYTES, TAG_BYTES, assertUuid, createVault,
   decryptFile, decryptMetadata, encryptFile, unlockVault, validateFileRecord, validateVault,
 } from './crypto.js';
 import { loginAccount, registerAccount, changePassword, replacePassword, setCodePrompt, beginTotpSetup, finishTotpSetup } from './account.js';
@@ -13,6 +13,7 @@ const API = '/api/cypher/';
 const $ = id => document.getElementById(id);
 const state = {
   session: null, key: null, files: [], information: new Map(), generation: 0,
+  folders: [], collection: 'drive', parent: null, editFolder: null, moveTarget: null, rotateChallenge: null,
   busy: false, view: 'list', objectURLs: new Set(), controllers: new Set(),
   previewURL: null, deleteTarget: null, wrappingSecret: null, totpChallenge: null, resetChallenge: null,
 };
@@ -22,6 +23,121 @@ const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'sh
 const collator = new Intl.Collator('ru-RU', { numeric: true, sensitivity: 'base' });
 
 class SessionChanged extends Error {}
+
+function itemPath(record) { return `items/${record.kind === 'folder' ? 'folders' : 'files'}/${record.id}/`; }
+function inTrash(record) {
+  const seen = new Set();
+  while (record) {
+    if (record.trashed_at || seen.has(record.id)) return true;
+    seen.add(record.id);
+    record = state.folders.find(folder => folder.id === record.parent_id);
+  }
+  return false;
+}
+function visibleItems() {
+  return [...state.folders, ...state.files].filter(record => {
+    if (state.collection === 'trash') return Boolean(record.trashed_at) && !inTrash(state.folders.find(f => f.id === record.parent_id));
+    if (inTrash(record)) return false;
+    return state.collection === 'starred' ? record.starred : (record.parent_id || null) === state.parent;
+  });
+}
+function openFolder(id) { if (state.busy) return; state.parent = id; state.collection = 'drive'; renderFiles(); }
+function folderPath(folder) {
+  const names = [], seen = new Set();
+  while (folder && !seen.has(folder.id)) {
+    seen.add(folder.id); names.unshift(state.information.get(folder.id)?.name || 'Папка');
+    folder = state.folders.find(f => f.id === folder.parent_id);
+  }
+  return ['Мой диск', ...names].join(' / ');
+}
+function renderNavigation() {
+  const current = state.folders.find(f => f.id === state.parent);
+  if (state.parent && (!current || inTrash(current))) state.parent = null;
+  $('collection-title').textContent = state.collection === 'trash' ? 'Корзина' : state.collection === 'starred' ? 'Избранное' : 'Мой диск';
+  document.querySelectorAll('[data-collection]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.collection === state.collection)));
+  $('trash-note').hidden = state.collection !== 'trash';
+  $('upload-button').hidden = state.collection === 'trash';
+  $('new-folder-button').hidden = state.collection !== 'drive';
+  $('breadcrumbs').replaceChildren();
+  if (state.collection === 'drive') {
+    const chain = [], seen = new Set(); let folder = state.folders.find(f => f.id === state.parent);
+    while (folder && !seen.has(folder.id)) { seen.add(folder.id); chain.unshift(folder); folder = state.folders.find(f => f.id === folder.parent_id); }
+    for (const part of [null, ...chain]) {
+      const button = makeElement('button', 'text-button', part ? state.information.get(part.id)?.name || 'Папка' : 'Мой диск');
+      button.type = 'button'; button.addEventListener('click', () => openFolder(part?.id || null));
+      $('breadcrumbs').append(button, document.createTextNode(' / '));
+    }
+  }
+  $('empty-state').querySelector('h2').textContent = state.collection === 'trash' ? 'Корзина пуста' : state.collection === 'starred' ? 'Пока нет избранного' : 'Эта папка пуста';
+  $('empty-state').querySelector('p').textContent = state.collection === 'trash' ? 'Удалённые объекты появятся здесь.' : state.collection === 'starred' ? 'Отметьте файл или папку звёздочкой.' : 'Создайте папку или загрузите файлы.';
+}
+async function changeItem(record, json) {
+  const expected = await freshContext();
+  await request(itemPath(record), {method: 'PATCH', json}); checkContext(expected); await loadFiles();
+}
+function openMove(record) {
+  state.moveTarget = record; $('move-parent').replaceChildren();
+  for (const folder of [null, ...state.folders.filter(f => !inTrash(f))]) {
+    let ancestor = folder, invalid = false; const seen = new Set();
+    while (ancestor && !seen.has(ancestor.id)) {
+      seen.add(ancestor.id); if (ancestor.id === record.id) invalid = true;
+      ancestor = state.folders.find(f => f.id === ancestor.parent_id);
+    }
+    if (invalid) continue;
+    const option = makeElement('option', '', folder ? folderPath(folder) : 'Мой диск');
+    option.value = folder?.id || ''; option.selected = option.value === (record.parent_id || ''); $('move-parent').append(option);
+  }
+  openDialog('move-dialog');
+}
+function clearRotation() {
+  state.rotateChallenge = null;
+  for (const id of ['rotate-secret', 'rotate-old-code', 'rotate-new-code']) $(id).value = '';
+  clearTotpQr($('rotate-qr'));
+  $('rotate-finish-form').hidden = true; $('rotate-start-form').hidden = false; $('rotate-passkey-button').hidden = false;
+}
+async function rotateRequest(path, json) {
+  const response = await fetch(`/api/otp/rotate/${path}/`, {method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error', headers: {'Content-Type': 'application/json', 'X-CSRFToken': state.session.csrf_token}, body: JSON.stringify(json)});
+  const result = await jsonResponse(response);
+  if (!response.ok) throw new CypherError(response.status === 429 ? 'Слишком много попыток. Попробуйте через 15 минут.' : 'Код неверен, уже использован или срок подтверждения истёк. Используйте новый код.');
+  return result;
+}
+async function startRotation(code) {
+  const expected = await freshContext(); const result = await rotateRequest('start', {code}); checkContext(expected);
+  if (!$('rotate-dialog').open) return;
+  assertUuid(result.challenge);
+  drawTotpQr($('rotate-qr'), result.secret, state.session.user.username);
+  state.rotateChallenge = result.challenge; $('rotate-secret').value = result.secret; $('rotate-old-code').value = '';
+  $('rotate-start-form').hidden = true; $('rotate-passkey-button').hidden = true; $('rotate-finish-form').hidden = false;
+}
+function bindOrganization() {
+  $('settings-button').addEventListener('click', () => openDialog('settings-dialog'));
+  $('rotate-open-button').addEventListener('click', () => { $('settings-dialog').close(); clearRotation(); openDialog('rotate-dialog'); });
+  $('rotate-dialog').addEventListener('close', clearRotation);
+  $('rotate-start-form').addEventListener('submit', event => { event.preventDefault(); runAction(() => startRotation($('rotate-old-code').value)); });
+  $('rotate-passkey-button').addEventListener('click', () => runAction(async () => {
+    const username = state.session.user.username;
+    const result = await loginPasskey();
+    if (result.username !== username) { lockVault(false); await refreshSession(); throw new CypherError('Выбран passkey другого аккаунта.'); }
+    await openVaultWithSecret(result.wrappingSecret, result.username, result.vault);
+    openDialog('rotate-dialog'); await startRotation('');
+  }));
+  $('rotate-finish-form').addEventListener('submit', event => { event.preventDefault(); runAction(async () => {
+    const expected = await freshContext();
+    await rotateRequest('finish', {challenge: state.rotateChallenge, code: $('rotate-new-code').value}); checkContext(expected);
+    $('rotate-dialog').close(); clearRotation(); await refreshSession();
+    setStatus('Новый TOTP подключён. Старый ключ отключён, другие сессии завершены. Файлы сохранены.', 'success');
+  }); });
+  document.querySelectorAll('[data-collection]').forEach(button => button.addEventListener('click', () => { if (state.busy) return; state.collection = button.dataset.collection; state.parent = null; renderFiles(); }));
+  $('new-folder-button').addEventListener('click', () => { state.editFolder = null; $('folder-name').value = ''; $('folder-title').textContent = 'Новая папка'; openDialog('folder-dialog'); });
+  $('folder-form').addEventListener('submit', event => { event.preventDefault(); runAction(async () => {
+    const expected = await freshContext(); const id = state.editFolder?.id || crypto.randomUUID();
+    const metadata = await encryptFolder(expected.key, expected.vaultId, id, $('folder-name').value.trim()); checkContext(expected);
+    if (state.editFolder) await request(itemPath(state.editFolder), {method: 'PATCH', json: {metadata}});
+    else await request('folders/', {method: 'POST', json: {id, vault_id: expected.vaultId, parent_id: state.parent, metadata}});
+    checkContext(expected); $('folder-dialog').close(); await loadFiles();
+  }); });
+  $('move-form').addEventListener('submit', event => { event.preventDefault(); runAction(async () => { await changeItem(state.moveTarget, {parent_id: $('move-parent').value || null}); $('move-dialog').close(); state.moveTarget = null; }); });
+}
 
 function formatBytes(value) {
   if (value < 1024) return `${value} Б`;
@@ -91,6 +207,8 @@ export function lockVault(showMessage = true) {
   $('totp-finish-form').hidden = true;
   $('totp-start-button').hidden = false;
   state.files = [];
+  state.folders = []; state.parent = null; state.collection = 'drive';
+  clearRotation();
   state.information.clear();
   state.deleteTarget = null;
   for (const controller of state.controllers) controller.abort();
@@ -257,7 +375,7 @@ function render() {
   $('files-panel').hidden = !opened;
   $('upload-backup-note').hidden = !opened || state.session.upload_ready;
   $('vault-footer').hidden = !authenticated || !state.session?.vault;
-  $('password-settings-button').hidden = !opened;
+  $('settings-button').hidden = !opened;
   const steps = ['password', 'telegram', 'passkey', 'totp'];
   const current = steps.indexOf(state.session?.next_step);
   for (const item of document.querySelectorAll('[data-step]')) {
@@ -285,6 +403,7 @@ function applyBusy() {
   $('confirm-reset-button').disabled = state.busy || $('reset-confirm').value !== 'DELETE ALL FILES';
   $('upload-button').disabled = state.busy || !state.session?.upload_ready;
   $('file-input').disabled = state.busy || !state.session?.upload_ready;
+  document.querySelectorAll('#new-folder-button, #settings-button, #rotate-dialog button[type=submit], #folder-form button, #move-form button, #rotate-passkey-button').forEach(button => { button.disabled = state.busy; });
   $('file-list').querySelectorAll('button').forEach(button => { button.disabled = state.busy; });
   $('files-panel').setAttribute('aria-busy', String(state.busy));
 }
@@ -378,15 +497,18 @@ function fileType(type) {
 }
 
 function renderFiles() {
+  renderNavigation();
+  const visible = visibleItems();
   $('file-list').replaceChildren();
   $('file-list').dataset.view = state.view;
-  document.querySelector('.list-heading').hidden = state.view !== 'list' || state.files.length === 0;
-  $('empty-state').hidden = state.files.length !== 0;
+  document.querySelector('.list-heading').hidden = state.view !== 'list' || visible.length === 0;
+  $('empty-state').hidden = visible.length !== 0;
   $('view-list').setAttribute('aria-pressed', String(state.view === 'list'));
   $('view-grid').setAttribute('aria-pressed', String(state.view === 'grid'));
-  $('file-count').textContent = state.files.length ? `Файлов: ${state.files.length}` : 'Файлов пока нет';
-  const sorted = [...state.files].sort((a, b) => collator.compare(state.information.get(a.id)?.name || a.id, state.information.get(b.id)?.name || b.id));
+  $('file-count').textContent = `Объектов: ${visible.length}`;
+  const sorted = visible.sort((a, b) => Number(b.kind === 'folder') - Number(a.kind === 'folder') || collator.compare(state.information.get(a.id)?.name || a.id, state.information.get(b.id)?.name || b.id));
   for (const record of sorted) {
+    const folder = record.kind === 'folder';
     const metadata = state.information.get(record.id);
     const invalid = !metadata;
     const name = metadata?.name || `Повреждённый файл ${record.id.slice(0, 8)}`;
@@ -394,28 +516,39 @@ function renderFiles() {
     row.dataset.fileId = record.id;
     const main = makeElement('div', 'file-main');
     const symbol = makeElement('span', `file-icon${safeImages.has(metadata?.type) ? ' image-icon' : ''}`);
-    symbol.append(icon(safeImages.has(metadata?.type) ? 'image' : 'file'));
+    symbol.append(icon(folder ? 'folder' : safeImages.has(metadata?.type) ? 'image' : 'file'));
     const text = makeElement('div', 'file-name-wrap');
-    const previewable = metadata && (safeImages.has(metadata.type) || canPreviewText(name, metadata.type));
+    const previewable = metadata && !record.trashed_at && (folder || safeImages.has(metadata.type) || canPreviewText(name, metadata.type));
     const nameElement = makeElement(previewable ? 'button' : 'span', 'file-name', name);
     if (previewable) {
       nameElement.type = 'button';
-      nameElement.addEventListener('click', () => runAction(() => obtainFile(record, true)));
+      nameElement.addEventListener('click', () => folder ? openFolder(record.id) : runAction(() => obtainFile(record, true)));
     }
     nameElement.title = name;
-    text.append(nameElement, makeElement('span', 'file-type', invalid ? 'Не удалось проверить метаданные' : fileType(metadata.type)));
+    text.append(nameElement, makeElement('span', 'file-type', invalid ? 'Не удалось проверить метаданные' : folder ? 'Папка' : fileType(metadata.type)));
     main.append(symbol, text);
-    const size = makeElement('span', 'file-size', metadata ? formatBytes(metadata.size) : '—');
+    const size = makeElement('span', 'file-size', metadata && !folder ? formatBytes(metadata.size) : '—');
     const timestamp = typeof record.created_at === 'string' ? new Date(record.created_at) : null;
     const date = makeElement('span', 'file-date', timestamp && Number.isFinite(timestamp.getTime()) ? dateFormat.format(timestamp) : '—');
     const actions = makeElement('div', 'file-actions');
-    if (metadata) {
-      if (previewable) actions.append(actionButton(`Просмотреть ${name}`, safeImages.has(metadata.type) ? 'image' : 'file', () => runAction(() => obtainFile(record, true)), 'preview-file'));
+    if (metadata && !folder && state.collection !== 'trash') {
+      if (previewable) actions.append(actionButton(`Просмотреть ${name}`, safeImages.has(metadata.type) ? 'image' : 'file', () => folder ? openFolder(record.id) : runAction(() => obtainFile(record, true)), 'preview-file'));
       actions.append(actionButton(`Скачать ${name}`, 'download', () => runAction(() => obtainFile(record, false)), 'download-file'));
     }
-    actions.append(actionButton(`Удалить ${name}`, 'trash', () => {
+    if (state.collection === 'trash') {
+      actions.append(actionButton(`Восстановить ${name}`, 'refresh', () => runAction(() => changeItem(record, {trashed: false}))));
+    } else {
+      const star = actionButton(`${record.starred ? 'Убрать из избранного' : 'В избранное'} ${name}`, 'star', () => runAction(() => changeItem(record, {starred: !record.starred})));
+      star.setAttribute('aria-pressed', String(record.starred));
+      actions.append(star, actionButton(`Переместить ${name}`, 'folder', () => openMove(record)));
+      if (folder && metadata) actions.append(actionButton(`Переименовать ${name}`, 'file', () => { state.editFolder = record; $('folder-title').textContent = 'Переименовать папку'; $('folder-name').value = name; openDialog('folder-dialog'); }));
+    }
+    actions.append(actionButton(`${state.collection === 'trash' ? 'Удалить навсегда' : 'Удалить'} ${name}`, 'trash', () => {
       state.deleteTarget = record;
       $('delete-description').textContent = name;
+      $('delete-title').textContent = state.collection === 'trash' ? 'Удалить навсегда?' : 'Переместить в корзину?';
+      $('delete-warning').textContent = state.collection === 'trash' ? 'Объект и всё содержимое папки будут удалены без возможности восстановления.' : 'Объект и содержимое папки можно будет восстановить из корзины.';
+      $('confirm-delete-button').textContent = state.collection === 'trash' ? 'Удалить навсегда' : 'В корзину';
       $('delete-dialog').showModal();
     }, 'delete-file'));
     row.append(main, size, date, actions);
@@ -427,6 +560,8 @@ function renderFiles() {
 export async function loadFiles() {
   const expected = await freshContext();
   const response = await request('files/');
+  const folderResponse = await request('folders/');
+  if (!Array.isArray(folderResponse.folders) || folderResponse.folders.length > 10000) throw new CypherError('Некорректный список папок.');
   checkContext(expected);
   if (!Array.isArray(response.files) || response.files.length > 10000) {
     throw new CypherError('Сервер вернул некорректный список файлов.');
@@ -434,13 +569,13 @@ export async function loadFiles() {
   const records = [];
   const information = new Map();
   const seen = new Set();
-  for (const record of response.files) {
+  for (const record of [...response.files, ...folderResponse.folders]) {
     assertUuid(record?.id);
     if (record.vault_id !== expected.vaultId || seen.has(record.id)) throw new CypherError('Сервер вернул некорректный список файлов.');
     seen.add(record.id);
     records.push(record);
     try {
-      const metadata = await decryptMetadata(expected.key, expected.vaultId, record);
+      const metadata = await (record.kind === 'folder' ? decryptFolder : decryptMetadata)(expected.key, expected.vaultId, record);
       information.set(record.id, { name: metadata.name, type: metadata.type, size: metadata.size });
     } catch (error) {
       if (!(error instanceof CypherError)) throw error;
@@ -448,7 +583,8 @@ export async function loadFiles() {
     }
     checkContext(expected);
   }
-  state.files = records;
+  state.files = records.filter(record => record.kind !== 'folder');
+  state.folders = records.filter(record => record.kind === 'folder');
   state.information = information;
   renderFiles();
   if (information.size !== records.length) setStatus('Некоторые файлы не прошли проверку. Их содержимое не открывается.', 'error');
@@ -521,6 +657,7 @@ async function obtainFile(record, preview) {
 }
 
 async function uploadFiles(fileList) {
+  if (state.collection === 'trash') throw new CypherError('Сначала откройте Мой диск.');
   if (!state.session?.upload_ready) throw new CypherError('Для загрузки завершите настройку доступа и подтвердите резервирование passkey.');
   const files = Array.from(fileList);
   if (!files.length) return;
@@ -554,6 +691,7 @@ async function uploadFiles(fileList) {
       checkContext(expected);
       $('upload-progress-text').textContent = `Загружаем ${completed + 1} из ${files.length}: ${file.name}`;
       const form = new FormData();
+      if (state.parent) form.append('parent_id', state.parent);
       form.append('vault_id', encrypted.vault_id);
       form.append('id', encrypted.id);
       form.append('metadata', JSON.stringify(encrypted.metadata));
@@ -588,12 +726,13 @@ async function deleteFile() {
   const expected = await freshContext();
   if (record.vault_id !== expected.vaultId) throw new SessionChanged();
   assertUuid(record.id);
-  await request(`files/${record.id}/`, { method: 'DELETE' });
+  if (state.collection === 'trash') await request(itemPath(record), {method: 'DELETE'});
+  else await request(itemPath(record), {method: 'PATCH', json: {trashed: true}});
   checkContext(expected);
   $('delete-dialog').close();
   state.deleteTarget = null;
   await loadFiles();
-  setStatus('Файл удалён.', 'success');
+  setStatus(state.collection === 'trash' ? 'Объект удалён навсегда.' : 'Объект перемещён в корзину.', 'success');
 }
 
 function openResetDialog() {
@@ -723,6 +862,7 @@ function wireEvents() {
     const theme = localStorage.getItem('cloud-cypher-theme');
     setTheme(['light', 'dark'].includes(theme) ? theme : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   } catch { setTheme(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  bindOrganization();
   $('theme-button').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
   $('login-link').addEventListener('click', event => { event.preventDefault(); openDialog('login-dialog'); });
   $('register-link').addEventListener('click', event => { event.preventDefault(); openDialog('register-dialog'); });
@@ -754,7 +894,7 @@ function wireEvents() {
       setStatus('Аккаунт создан. Подтвердите Telegram, чтобы продолжить.', 'success');
     });
   });
-  $('password-settings-button').addEventListener('click', () => openDialog('password-dialog'));
+  $('password-settings-button').addEventListener('click', () => { $('settings-dialog').close(); openDialog('password-dialog'); });
   $('password-form').addEventListener('submit', event => {
     event.preventDefault();
     if ($('new-password').value !== $('new-password-confirm').value) { setStatus('Новые пароли не совпадают.', 'error'); return; }

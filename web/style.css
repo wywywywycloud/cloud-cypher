@@ -3,6 +3,15 @@
 :root[data-theme="dark"] { color-scheme:dark; --bg:#15181f; --surface:#1d222d; --surface-alt:#252c38; --text:#f0f2f8; --muted:#a0a9bd; --border:#303847; --accent:#a4adff; --accent-hover:#bec5ff; --accent-soft:#2c3354; --green:#72c5a7; --danger:#ff96a5; --danger-soft:#3b2932; --shadow:0 16px 60px #0002; }
 @media(prefers-color-scheme:dark) { :root:not([data-theme]) { color-scheme:dark; --bg:#15181f; --surface:#1d222d; --surface-alt:#252c38; --text:#f0f2f8; --muted:#a0a9bd; --border:#303847; --accent:#a4adff; --accent-hover:#bec5ff; --accent-soft:#2c3354; --green:#72c5a7; --danger:#ff96a5; --danger-soft:#3b2932; --shadow:0 16px 60px #0002; } }
 * { box-sizing:border-box; }
+.drive-nav { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.drive-nav button { background:transparent; border:0; border-radius:24px; padding:10px 20px; color:var(--muted); }
+.drive-nav button[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent); }
+.breadcrumbs { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:16px 0; overflow-wrap:anywhere; }
+.breadcrumbs button { max-width:100%; overflow-wrap:anywhere; }
+.icon-button[aria-pressed="true"] { color:var(--accent); }
+.icon-button[aria-pressed="true"] use[href="#icon-star"] { fill:var(--accent); }
+#move-parent { width:100%; padding:12px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:10px; }
+#trash-note { margin-bottom:16px; }
 body { margin:0; background:var(--bg); color:var(--text); line-height:1.55; font-size:15px; min-height:100vh; display:flex; flex-direction:column; }
 a { color:var(--accent); text-underline-offset:3px; }
 button,input { font:inherit; }
@@ -367,3 +376,7 @@ dialog::backdrop { background:#10132399; backdrop-filter:blur(4px); }
 .button-skip:hover:not(:disabled) { background:#f1edf8; }
 #skip-passkey-dialog .button + .button { margin-top:12px; }
 #skip-passkey-dialog .button-danger { background:#b42336; color:#fff; }
+.file-toolbar-actions { flex-wrap:wrap; }
+.file-actions { flex-wrap:wrap; max-width:180px; }
+@media(min-width:761px) { .list-heading,.file-row { grid-template-columns:minmax(120px,1fr) 85px 110px 180px; } }
+@media(max-width:760px) { .file-actions { max-width:100px; } .file-toolbar { align-items:flex-start; } }
