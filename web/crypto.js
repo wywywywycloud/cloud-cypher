@@ -292,3 +292,27 @@ export async function decryptFile(vaultKey, vaultId, record, ciphertext) {
     rawKey.fill(0);
   }
 }
+
+export async function encryptFolder(key, vaultId, id, name) {
+  validateFileInfo({name, type: 'application/octet-stream', size: 0});
+  const iv = randomBytes(12);
+  const plaintext = encoder.encode(JSON.stringify({name}));
+  try {
+    const ct = await seal(key, plaintext, iv, aad('folder', vaultId, id));
+    return {v: 1, iv: encodeBase64Url(iv), ct: encodeBase64Url(ct)};
+  } finally { plaintext.fill(0); }
+}
+
+export async function decryptFolder(key, vaultId, record) {
+  assertUuid(record.id);
+  if (record.vault_id !== vaultId) throw new CypherError('Папка относится к другому хранилищу.');
+  const envelope = validateEnvelope(record.metadata);
+  const raw = await open(key, envelope.ciphertext, envelope.iv, aad('folder', vaultId, record.id));
+  try {
+    const info = JSON.parse(decoder.decode(raw));
+    exactObject(info, ['name']);
+    validateFileInfo({name: info.name, type: 'application/octet-stream', size: 0});
+    return {...info, type: 'folder', size: 0};
+  } catch { throw new CypherError('Не удалось проверить имя папки.'); }
+  finally { raw.fill(0); }
+}
